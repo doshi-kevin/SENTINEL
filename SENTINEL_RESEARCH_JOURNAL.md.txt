@@ -1,0 +1,464 @@
+# 📊 Understanding Your Extracted Data
+
+## 🎉 Congratulations!
+
+You've successfully extracted and organized the DARPA Transparent Computing data! Here's what you have:
+
+---
+
+## 📁 Your Data Files
+
+### 1. **events.csv** - System Actions (Most Important!)
+**What it contains:** Every action performed on the Windows system
+- Reading files
+- Writing data
+- Executing programs
+- Network communications
+- Registry modifications
+
+**Key Columns:**
+- `timestamp` - When the action happened
+- `event_type` - What kind of action (EVENT_READ, EVENT_WRITE, EVENT_EXECUTE, etc.)
+- `subject` - UUID of the process that did the action
+- `predicate_object` - UUID of what was affected (file, network, etc.)
+- `size` - Size of data involved
+
+**How to use it:**
+- Sort by timestamp to see sequence of events
+- Filter by event_type to find specific actions
+- Look for unusual patterns around attack times
+- This is your primary data for detecting attacks!
+
+---
+
+### 2. **subjects.csv** - Processes/Programs
+**What it contains:** Every process (running program) on the system
+- chrome.exe, firefox.exe, powershell.exe, etc.
+- Parent-child relationships between processes
+- When each process started
+
+**Key Columns:**
+- `uuid` - Unique ID for this process
+- `cid` - Process ID (PID)
+- `cmd_line` - Full command that started the process
+- `parent_subject` - UUID of parent process
+- `privilege_level` - Admin rights or normal user
+
+**How to use it:**
+- Match UUIDs with events.csv to see what each process did
+- Follow parent-child chains to see how processes spawned
+- Look for suspicious process names or command lines
+- Check privilege escalation (normal user → admin)
+
+---
+
+### 3. **network.csv** - Network Connections
+**What it contains:** Every network connection made
+- Outbound connections to servers
+- Inbound connections
+- Ports used
+- Protocols (TCP, UDP)
+
+**Key Columns:**
+- `uuid` - Unique ID for this connection
+- `local_address` & `local_port` - Your computer's end
+- `remote_address` & `remote_port` - Server being connected to
+- `ip_protocol` - Type of connection (6=TCP, 17=UDP)
+
+**How to use it:**
+- Match UUIDs with events.csv to see network activity
+- Look for connections to suspicious IPs
+- Check for unusual ports
+- Find Command & Control (C2) server connections
+
+---
+
+### 4. **files.csv** - File Objects
+**What it contains:** Files that were accessed
+- Documents
+- Executables
+- Configuration files
+
+**Key Columns:**
+- `uuid` - Unique ID for this file
+- `file_type` - Type of file
+- `permission` - Access permissions
+
+**How to use it:**
+- Match UUIDs with events.csv to see file operations
+- Track which files were read, written, or executed
+- Look for sensitive data being accessed
+
+---
+
+### 5. **memory.csv** - Memory Objects
+**What it contains:** Memory regions accessed by processes
+- Memory addresses
+- Memory operations
+
+**Key Columns:**
+- `uuid` - Unique ID
+- `memory_address` - Location in memory
+- `size` - Size of memory region
+
+**How to use it:**
+- Advanced: Track memory-based attacks
+- Less important for beginners
+
+---
+
+### 6. **registry.csv** - Windows Registry (Windows-specific)
+**What it contains:** Registry key access/modifications
+- System settings
+- Software configurations
+- Persistence mechanisms
+
+**Key Columns:**
+- `uuid` - Unique ID
+- `key` - Registry key path
+- `value_name` - Specific value accessed
+
+**How to use it:**
+- Look for persistence mechanisms (Run keys)
+- Track configuration changes
+- Find malware registry modifications
+
+---
+
+### 7. **file_analysis.txt** - Metadata
+**What it contains:** Analysis report of the raw data file
+- Record counts
+- Structure information
+
+**How to use it:**
+- Reference document
+- Understanding data format
+
+---
+
+## 🔗 How the Data Connects
+
+### The Provenance Graph Concept
+
+Think of it like this:
+
+```
+Subject (Process)  →  Event (Action)  →  Object (File/Network)
+    firefox.exe    →   EVENT_WRITE    →    config.json
+
+Who did it?          What happened?      What was affected?
+```
+
+### Following the Trail
+
+**Example Attack Scenario:**
+
+1. **Initial Access:**
+   ```
+   events.csv: EVENT_EXECUTE
+   subject: outlook.exe (email client)
+   object: malware.exe
+   → Email attachment executed!
+   ```
+
+2. **Execution:**
+   ```
+   subjects.csv: 
+   uuid: abc123
+   cmd_line: malware.exe
+   parent: outlook.exe
+   → New malicious process spawned
+   ```
+
+3. **Persistence:**
+   ```
+   events.csv: EVENT_WRITE
+   subject: malware.exe
+   object: registry key "HKLM\Software\Microsoft\Windows\Run"
+   → Setting up to run on startup
+   ```
+
+4. **Command & Control:**
+   ```
+   events.csv: EVENT_CONNECT
+   subject: malware.exe
+   object: network connection to 10.0.0.5:443
+   
+   network.csv:
+   remote_address: 10.0.0.5
+   remote_port: 443
+   → Calling home to attacker server
+   ```
+
+5. **Data Exfiltration:**
+   ```
+   events.csv: EVENT_READ
+   subject: malware.exe
+   object: confidential_data.pdf
+   
+   Then:
+   
+   events.csv: EVENT_SENDTO
+   subject: malware.exe
+   object: network to 10.0.0.5
+   → Stealing data!
+   ```
+
+---
+
+## 📖 How to Explore Your Data
+
+### In Excel/Google Sheets
+
+**Step 1: Open events.csv**
+
+**Step 2: Basic Exploration**
+- Sort by timestamp (oldest to newest)
+- Use AutoFilter (Data → Filter)
+- Create pivot tables
+
+**Step 3: Find Attack Patterns**
+
+**Look for these suspicious patterns:**
+
+1. **Unusual Processes:**
+   - Filter event_type = EVENT_EXECUTE
+   - Look for weird process names
+   - Check processes running from temp folders
+
+2. **Network Activity:**
+   - Filter event_type = EVENT_CONNECT, EVENT_SENDTO
+   - Look for unusual IPs
+   - Check for connections to suspicious ports
+
+3. **File Operations:**
+   - Filter event_type = EVENT_WRITE
+   - Look for files being created in system folders
+   - Check for executables being written
+
+4. **Registry Changes:**
+   - Look at registry.csv
+   - Check for Run keys
+   - Find persistence mechanisms
+
+**Step 4: Cross-Reference with Ground Truth**
+
+Open the ground truth PDF and find:
+- What attacks were performed?
+- When did they happen?
+- What hosts were affected?
+
+Then search your CSV files for those times/indicators!
+
+---
+
+## 🎯 Your Next Steps
+
+### Immediate (Today):
+
+1. **✅ Clean up Python scripts** (if you want)
+   - Keep the CSV files
+   - Keep documentation files
+   - Delete .py scripts if desired
+
+2. **📖 Open events.csv in Excel**
+   - Just look at it
+   - See what the data looks like
+   - Sort by different columns
+
+3. **📚 Read Ground Truth PDF**
+   - Understand what attacks happened
+   - Note the dates and times
+   - List the indicators of compromise
+
+### Short-term (This Week):
+
+4. **🔍 Manual Analysis**
+   - Pick one attack from ground truth
+   - Find events around that time in events.csv
+   - Try to trace the attack manually
+
+5. **📊 Basic Statistics**
+   - Count event types (pivot table)
+   - Timeline of events (chart)
+   - Most active processes
+
+6. **📝 Document Findings**
+   - Update your research journal
+   - Note interesting patterns
+   - Write questions that come up
+
+### Medium-term (Next 2 Weeks):
+
+7. **🔗 Link the Data**
+   - Match UUIDs between files
+   - Build simple provenance chains
+   - Understand relationships
+
+8. **🎨 Visualize**
+   - Create timeline charts
+   - Process activity graphs
+   - Network connection diagrams
+
+### Long-term (Building SENTINEL):
+
+9. **🤖 Feature Engineering**
+   - What features indicate attacks?
+   - Extract graph properties
+   - Design ML features
+
+10. **🧠 Model Development**
+    - Build GNN for attack detection
+    - Train on labeled data
+    - Evaluate performance
+
+---
+
+## 💡 Key Concepts to Understand
+
+### 1. UUIDs Link Everything
+Every entity has a UUID (unique ID). Use these to connect:
+- Events → Subjects
+- Events → Objects
+- Subjects → Parents
+- Objects → Network/Files
+
+### 2. Timestamps Show Sequence
+- Events happen in order
+- Following timestamps = following the attack
+- Look for patterns over time
+
+### 3. Event Types Tell the Story
+- EVENT_EXECUTE = Program started
+- EVENT_READ = Data accessed
+- EVENT_WRITE = Data modified
+- EVENT_SENDTO = Network transmission
+
+### 4. Provenance = History
+Tracking where data came from and where it went.
+
+---
+
+## 📊 Quick Analysis Ideas
+
+### 1. Timeline of Activity
+```
+In Excel:
+- Select timestamp column
+- Insert → Line Chart
+- See activity over time
+```
+
+### 2. Most Common Event Types
+```
+In Excel:
+- Insert → Pivot Table
+- Rows: event_type
+- Values: Count of event_type
+```
+
+### 3. Process Activity
+```
+- Filter events.csv by subject UUID
+- See all actions by one process
+- Follow its behavior
+```
+
+### 4. Network Connections Timeline
+```
+- Filter event_type for network events
+- Sort by timestamp
+- See connection patterns
+```
+
+---
+
+## 🎓 Learning Resources
+
+### Understanding the Data:
+1. Your CDM documentation (cdm.pdf)
+2. Ground truth report (attack details)
+3. Event log (what went wrong during testing)
+
+### Understanding Attacks:
+1. MITRE ATT&CK Framework (google it)
+2. APT attack patterns
+3. Windows attack techniques
+
+### Understanding Graph Analysis:
+1. Provenance graphs basics
+2. Graph neural networks
+3. Anomaly detection in graphs
+
+---
+
+## ✅ Success Checklist
+
+You've completed Phase 1 when you can answer:
+
+- [ ] What does each CSV file contain?
+- [ ] How do I link data between files using UUIDs?
+- [ ] What event types exist and what do they mean?
+- [ ] How do I find events from a specific process?
+- [ ] How do I track data flow through the system?
+- [ ] What attacks happened according to ground truth?
+- [ ] Can I manually find evidence of one attack in the data?
+
+---
+
+## 🗂️ Recommended Folder Structure
+
+```
+SENTINEL/
+├── data/
+│   ├── raw/                      # Original .bin.gz files
+│   │   └── fivedirections/
+│   │
+│   └── processed/                # ← YOUR CSV FILES HERE
+│       ├── events.csv           ✅
+│       ├── subjects.csv         ✅
+│       ├── network.csv          ✅
+│       ├── files.csv            ✅
+│       ├── memory.csv           ✅
+│       ├── registry.csv         ✅
+│       └── file_analysis.txt    ✅
+│
+├── docs/                         # Documentation
+│   ├── ground_truth/
+│   ├── schema/
+│   └── guides/
+│
+├── analysis/                     # Your analysis work
+│   ├── manual_findings.md
+│   ├── attack_timelines.xlsx
+│   └── patterns_discovered.md
+│
+└── SENTINEL_RESEARCH_JOURNAL.md  # Your notes!
+```
+
+---
+
+## 🎯 Your Mission
+
+**Goal:** Understand the data well enough to manually identify one attack from the ground truth report.
+
+**Success looks like:**
+"I found the attack! At timestamp X, process Y did Z, which matches the ground truth description of attack A."
+
+---
+
+## 📞 When You're Ready
+
+Once you understand the data:
+1. We'll build provenance graphs
+2. Extract ML features
+3. Train GNN models
+4. Test adversarial robustness
+
+But first: **Understand the data deeply!**
+
+---
+
+**You're making amazing progress! 🚀**
+
+Time to explore what you've extracted!

@@ -1,0 +1,14 @@
+SENTINEL Data Summary
+==================================================
+
+Total Events                  : 99037
+Unique Event Types            : 25
+Total Processes               : 51
+Unique Subjects in Events     : 287
+Unique Objects                : 5118
+Network Connections           : 58
+Time Span                     : 0 days 00:49:28.885000
+
+==================================================
+
+Generated: 2025-11-02 13:18:30.072140

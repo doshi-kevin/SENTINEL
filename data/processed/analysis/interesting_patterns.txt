@@ -1,0 +1,24 @@
+SENTINEL - Interesting Patterns Report
+======================================================================
+
+ACTIVITY BURSTS
+----------------------------------------------------------------------
+2019-05-07 11:11:00 - 52,465 events
+2019-05-07 11:10:00 - 46,478 events
+
+
+RARE EVENTS
+----------------------------------------------------------------------
+EVENT_SIGNAL: 4 occurrences
+EVENT_FORK: 2 occurrences
+EVENT_EXECUTE: 2 occurrences
+EVENT_SENDMSG: 2 occurrences
+
+
+RECOMMENDED INVESTIGATIONS
+----------------------------------------------------------------------
+1. Time window with most activity: 2019-05-07 11:11:00
+2. Investigate rare event type: EVENT_SIGNAL
+
+
+Generated: 2025-11-02 13:18:42.693524

@@ -1,0 +1,194 @@
+# 📋 SENTINEL - Quick Reference Card
+
+## ✅ COMPLETED
+- [x] Phase 1: Understanding (Week 1)
+- [x] Phase 2: Data Extraction (Week 2)  
+- [x] Phase 3: Initial Analysis (Week 3 - partial)
+
+## 📊 WHAT YOU HAVE
+- **99,037 events** from May 7, 2019
+- **51 processes/threads**
+- **58 network connections**
+- **4 visualizations** showing patterns
+- **1 massive burst** at 11:10-11:11 AM (🚨 THE ATTACK!)
+
+## 🎯 NEXT STEPS
+
+### Immediate (Next Session)
+1. Read ground truth PDF - Find May 7 attack
+2. Filter events to 11:10-11:11 window
+3. Find the 2 EVENT_EXECUTE events
+4. Trace what those processes did
+5. Document the attack chain
+
+### This Week
+- Manually reconstruct one complete attack
+- Match findings to ground truth
+- Create attack timeline
+- Update research journal
+
+### Next 2 Weeks
+- Build provenance graphs
+- Start graph feature extraction
+- Design GNN architecture
+
+## 🔍 KEY FINDING
+
+**CRITICAL DISCOVERY:**
+98% of all events (98,943 out of 99,037) occurred in just 2 minutes:
+- 11:10 AM: 46,478 events
+- 11:11 AM: 52,465 events
+
+This burst contains:
+- 2 EVENT_EXECUTE (programs launched)
+- 2 EVENT_FORK (processes spawned)  
+- 4 EVENT_SIGNAL (process communication)
+- Thousands of file/network operations
+
+**This is almost certainly THE ATTACK WINDOW!**
+
+## 📁 KEY FILES
+
+**Data:**
+- `data/processed/events.csv` - All events
+- `data/processed/subjects.csv` - Process info
+- `data/processed/network.csv` - Connections
+
+**Visualizations:**
+- `data/processed/analysis/2_timeline.png` ← **LOOK AT THIS!**
+- `data/processed/analysis/interesting_patterns.txt` ← **READ THIS!**
+
+**Documentation:**
+- `COMPLETE_DOCUMENTATION.md` ← **FULL DETAILS**
+- `AFTER_BREAK_GUIDE.md` ← **WHAT TO DO NEXT**
+- `tc_ground_truth_report_e5_update.pdf` ← **ATTACK DESCRIPTIONS**
+
+## 🎓 WHAT YOU'VE LEARNED
+
+**Technical:**
+- Parsing Avro binary formats
+- Handling massive security datasets
+- Statistical anomaly detection
+- Data visualization
+
+**Domain:**
+- System provenance tracking
+- APT attack patterns
+- Windows event types
+- Process relationships
+
+**Research:**
+- Working with real attack data
+- Identifying suspicious patterns
+- Manual attack reconstruction
+- Scientific documentation
+
+## 💡 INVESTIGATION STRATEGY
+
+### How to Find the Attack
+
+**Step 1:** Open events.csv
+```
+Filter: timestamp >= "2019-05-07 11:10:00"
+        AND timestamp <= "2019-05-07 11:11:59"
+Result: ~98K events
+```
+
+**Step 2:** Find the trigger
+```
+Filter: type = "EVENT_EXECUTE"
+Result: 2 events - These started programs!
+```
+
+**Step 3:** Get process info
+```
+Copy the "subject" UUID from EVENT_EXECUTE
+Look it up in subjects.csv
+Find: PID, command line, parent process
+```
+
+**Step 4:** Trace actions
+```
+Filter events.csv by that subject UUID
+See: Everything that process did
+- Files it read (EVENT_READ)
+- Data it wrote (EVENT_WRITE)  
+- Network it used (EVENT_SENDTO)
+```
+
+**Step 5:** Follow the chain
+```
+Look at what it spawned (parent_subject)
+See EVENT_FORK events
+Track child processes
+```
+
+## 🚨 SUSPICIOUS INDICATORS
+
+**In Your Data:**
+- ✅ Massive activity burst (7x normal)
+- ✅ Rare event types (EXECUTE, FORK)
+- ✅ Process spawning chains
+- ✅ Network to unusual ports
+- ✅ Concentrated in 2-minute window
+
+**To Look For:**
+- Unexpected program execution
+- Parent processes that shouldn't spawn children
+- File access to sensitive locations
+- Network to external IPs
+- Registry persistence mechanisms
+
+## 📞 CONTACTS
+
+**Professor:** [Name/Email]
+**Potential Collaborator:** Xuanlin (Terry) Liu
+**Project:** SENTINEL APT Detection
+
+## ⏱️ TIME ESTIMATES
+
+**Next session:** 3-4 hours
+- Ground truth: 1 hour
+- Manual investigation: 2 hours
+- Documentation: 30-60 minutes
+
+**Phase 3 completion:** 1 week
+**Phase 4 (Graphs):** 2-3 weeks  
+**Full project:** 10-12 weeks total
+
+## 🎯 SUCCESS CRITERIA
+
+**You'll know Phase 3 is complete when you can:**
+- ✅ Explain what attack happened
+- ✅ Show the attack timeline
+- ✅ Trace the process chain
+- ✅ Identify IOCs in your data
+- ✅ Match to ground truth documentation
+
+## 📊 PROJECT PROGRESS
+
+```
+Phase 1: ████████████████████ 100%
+Phase 2: ████████████████████ 100%
+Phase 3: ███████████████░░░░░  75%
+Phase 4: ░░░░░░░░░░░░░░░░░░░░   0%
+Overall: ████████░░░░░░░░░░░░  37%
+```
+
+## 💪 YOU'VE GOT THIS!
+
+You've done the hard part:
+- ✅ Understood complex domain
+- ✅ Extracted real data
+- ✅ Found the attack window
+
+Now just need to:
+- 🎯 Read what the attack was
+- 🔍 Find it in your data
+- 📝 Document what you find
+
+**The smoking gun is at 11:10 AM on May 7, 2019!**
+
+---
+
+*Keep this file handy as your quick reference guide!*

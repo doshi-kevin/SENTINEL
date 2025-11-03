@@ -1,0 +1,250 @@
+======================================================================
+FILE ANALYSIS REPORT - 2025-10-25 20:03:34.701233
+======================================================================
+
+File: data/raw/fivedirections/ta1-fivedirections-1-e5-official-1.bin.1.gz
+
+📊 Analyzing first 10,000 records...
+
+
+✅ Analyzed 10,000 records
+
+======================================================================
+📊 RECORD TYPE DISTRIBUTION
+======================================================================
+
+   uuid                                                        : 10,000 (100.0%)
+   size                                                        :  9,997 (100.0%)
+   type                                                        :  9,986 ( 99.9%)
+   properties                                                  :  9,986 ( 99.9%)
+   record.type=RECORD_EVENT                                    :  9,985 ( 99.9%)
+   sequence                                                    :  9,985 ( 99.9%)
+   threadId                                                    :  9,985 ( 99.9%)
+   subject                                                     :  9,985 ( 99.9%)
+   predicateObject                                             :  9,985 ( 99.9%)
+   predicateObjectPath                                         :  9,985 ( 99.9%)
+   predicateObject2                                            :  9,985 ( 99.9%)
+   predicateObject2Path                                        :  9,985 ( 99.9%)
+   timestampNanos                                              :  9,985 ( 99.9%)
+   names                                                       :  9,985 ( 99.9%)
+   parameters                                                  :  9,985 ( 99.9%)
+   location                                                    :  9,985 ( 99.9%)
+   programPoint                                                :  9,985 ( 99.9%)
+   baseObject                                                  :     14 (  0.1%)
+   record.type=RECORD_MEMORY_OBJECT                            :     12 (  0.1%)
+   memoryAddress                                               :     12 (  0.1%)
+   pageNumber                                                  :     12 (  0.1%)
+   pageOffset                                                  :     12 (  0.1%)
+   record.type=RECORD_NET_FLOW_OBJECT                          :      2 (  0.0%)
+   localAddress                                                :      2 (  0.0%)
+   localPort                                                   :      2 (  0.0%)
+   remoteAddress                                               :      2 (  0.0%)
+   remotePort                                                  :      2 (  0.0%)
+   ipProtocol                                                  :      2 (  0.0%)
+   initTcpSeqNum                                               :      2 (  0.0%)
+   fileDescriptor                                              :      2 (  0.0%)
+   record.type=RECORD_SUBJECT                                  :      1 (  0.0%)
+   cid                                                         :      1 (  0.0%)
+   parentSubject                                               :      1 (  0.0%)
+   localPrincipal                                              :      1 (  0.0%)
+   startTimestampNanos                                         :      1 (  0.0%)
+   unitId                                                      :      1 (  0.0%)
+   iteration                                                   :      1 (  0.0%)
+   count                                                       :      1 (  0.0%)
+   cmdLine                                                     :      1 (  0.0%)
+   privilegeLevel                                              :      1 (  0.0%)
+   importedLibraries                                           :      1 (  0.0%)
+   exportedLibraries                                           :      1 (  0.0%)
+
+======================================================================
+⚡ EVENT ANALYSIS
+======================================================================
+
+Total event-like records found: 0
+⚠️  WARNING: No events found in first 10,000 records!
+   Events might be:
+   - Later in the file
+   - Using a different key name
+   - Not present in this file
+
+======================================================================
+📄 FIRST RECORD STRUCTURE
+======================================================================
+
+Top-level keys:
+   • datum: dict
+   • CDMVersion: str
+   • type: str
+   • hostId: bytes
+   • sessionNumber: int
+   • source: str
+
+--- Complete First Record (JSON) ---
+
+{
+  "datum": {
+    "uuid": "b'\\xb3HG\\x998\\x15C\\xc9\\xbfx\\x81\\x1a\\xf1I\\x1f\\xd9'",
+    "sequence": null,
+    "type": "EVENT_SENDTO",
+    "threadId": null,
+    "subject": "b'r\\x0f\\x1dY\\x04\\x82K\\xd6\\x86]\\xaa`\\xd6^\\x90)'",
+    "predicateObject": "b\"\\x17\\n\\x97\\x01r\\xffF\\xf0\\xbf\\x94\\x16K\\x97'\\xcb$\"",
+    "predicateObjectPath": null,
+    "predicateObject2": null,
+    "predicateObject2Path": null,
+    "timestampNanos": 1557241844683000000,
+    "names": [
+      "EVENT_SENDTO"
+    ],
+    "parameters": null,
+    "location": null,
+    "size": 36,
+    "programPoint": null,
+    "properties": {
+      "end_time": "42176850",
+      "start_time": "42176850"
+    }
+  },
+  "CDMVersion": "20",
+  "type": "RECORD_EVENT",
+  "hostId": "b'*\\xb8\\x8d\\xcd\\xcb\\xe6A\\xdf\\xaci\\x9fm`X\\xe3\\x98'",
+  "sessionNumber": 4427,
+  "source": "SOURCE_WINDOWS_FIVEDIRECTIONS"
+}
+
+======================================================================
+📦 EXAMPLE RECORDS BY TYPE
+======================================================================
+
+--- baseObject ---
+Fields in this record type:
+   • epoch: NoneType
+   • permission: NoneType
+   • properties: dict
+
+--- cid ---
+Value: 5504
+
+--- cmdLine ---
+Value: None
+
+--- count ---
+Value: None
+
+--- exportedLibraries ---
+Value: None
+
+--- fileDescriptor ---
+Value: None
+
+--- importedLibraries ---
+Value: None
+
+--- initTcpSeqNum ---
+Value: None
+
+--- ipProtocol ---
+Value: 17
+
+--- iteration ---
+Value: None
+
+--- localAddress ---
+Value: ::
+
+--- localPort ---
+Value: 53522
+
+--- localPrincipal ---
+Value: None
+
+--- location ---
+Value: None
+
+--- memoryAddress ---
+Value: 249645473792
+
+--- names ---
+Value: ['EVENT_SENDTO']
+
+--- pageNumber ---
+Value: None
+
+--- pageOffset ---
+Value: None
+
+--- parameters ---
+Value: None
+
+--- parentSubject ---
+Value: None
+
+--- predicateObject ---
+Value: b"\x17\n\x97\x01r\xffF\xf0\xbf\x94\x16K\x97'\xcb$"
+
+--- predicateObject2 ---
+Value: None
+
+--- predicateObject2Path ---
+Value: None
+
+--- predicateObjectPath ---
+Value: None
+
+--- privilegeLevel ---
+Value: None
+
+--- programPoint ---
+Value: None
+
+--- properties ---
+Fields in this record type:
+   • end_time: str
+   • start_time: str
+
+--- remoteAddress ---
+Value: None
+
+--- remotePort ---
+Value: None
+
+--- sequence ---
+Value: None
+
+--- size ---
+Value: 36
+
+--- startTimestampNanos ---
+Value: 1557241841912000000
+
+--- subject ---
+Value: b'r\x0f\x1dY\x04\x82K\xd6\x86]\xaa`\xd6^\x90)'
+
+--- threadId ---
+Value: None
+
+--- timestampNanos ---
+Value: 1557241844683000000
+
+--- type ---
+Value: EVENT_SENDTO
+
+--- unitId ---
+Value: None
+
+--- uuid ---
+Value: b'\xb3HG\x998\x15C\xc9\xbfx\x81\x1a\xf1I\x1f\xd9'
+
+======================================================================
+💡 RECOMMENDATIONS
+======================================================================
+
+⚠️  No events found in sample. Try:
+   1. Scan more records (increase sample size)
+   2. Check if file contains only metadata
+   3. Try a different file from the dataset
+   4. Look at the CDM schema to understand structure
+
+======================================================================
+✅ Analysis complete!
+======================================================================
