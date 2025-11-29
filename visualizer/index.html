@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Sentinel Graph Visualizer</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+<h2 class="title">Sentinel Graph Visualizer</h2>
+
+<div class="top-panel">
+    <label>Sequence ID:</label>
+    <input id="seqInput" type="number" min="0" placeholder="Enter sequence id...">
+    <button onclick="loadGraph()">Load</button>
+</div>
+
+<!-- Attack Summary Panel -->
+<div id="storyPanel">
+    <h3>Attack Summary</h3>
+    <div id="storyContent">Load a sequence to see the incident summary.</div>
+</div>
+
+<!-- Graph + Node Info -->
+<div class="container">
+    <svg id="graphSvg"></svg>
+
+    <div class="info-panel" id="infoPanel">
+        <h3>Node Details</h3>
+        <p>Click a node to view info.</p>
+    </div>
+</div>
+
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script type="module" src="graph.js"></script>
+
+
+</body>
+</html>
