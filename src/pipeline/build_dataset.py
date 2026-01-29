@@ -3,21 +3,22 @@
 import pandas as pd
 from pathlib import Path
 
-from src.pipeline.event_loader import EventLoader
-from src.pipeline.window_generator import WindowGenerator
-from src.pipeline.graph_constructor import GraphConstructor
-from src.pipeline.feature_engineer import FeatureEngineer
-from src.pipeline.graph_exporter import GraphExporter
+from event_loader import EventLoader
+from window_generator import WindowGenerator
+from graph_constructor import GraphConstructor
+from feature_engineer import FeatureEngineer
+from graph_exporter import GraphExporter
 
 
 class DatasetBuilder:
     def __init__(self):
 
         # FIXED: Correct events.csv path for your system
-        self.events_path = Path("data/processed/events.csv")
+        project_root = Path(__file__).parent.parent.parent
+        self.events_path = project_root / "data/auto_processed/fivedirections/e5/events_1.csv"
 
         # FIXED: Correct output folder
-        self.output_dir = Path("data/model_ready")
+        self.output_dir = project_root / "data/model_ready"
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
         # FIXED: Graphs folder
@@ -41,12 +42,12 @@ class DatasetBuilder:
 
 
     def run(self):
-        print("📥 Loading events from:", self.events_path)
+        print("Loading events from:", self.events_path)
         events = self.loader.load()
-        print("✔ Loaded events:", len(events))
+        print("Loaded events:", len(events))
 
         windows = self.windows.generate_windows(events)
-        print("✔ Generated windows:", len(windows))
+        print("Generated windows:", len(windows))
 
         label_rows = []
         count = 0
@@ -58,14 +59,14 @@ class DatasetBuilder:
 
             if w.empty:
                 # Debug print
-                print(f"⚠️  Empty window {i}, skipping")
+                print(f"Empty window {i}, skipping")
                 continue
 
             # Build raw graph
             G = self.graph_builder.build_graph(w)
 
             if len(G.nodes) == 0:
-                print(f"⚠️  Empty graph for window {i}, skipping")
+                print(f"Empty graph for window {i}, skipping")
                 continue
 
             # Add features
@@ -83,14 +84,14 @@ class DatasetBuilder:
                 "num_edges": len(G.edges)
             })
 
-            print(f"✔ Graph {count} saved ({len(G.nodes)} nodes, {len(G.edges)} edges)")
+            print(f"Graph {count} saved ({len(G.nodes)} nodes, {len(G.edges)} edges)")
 
             count += 1
 
         # Save labels
         pd.DataFrame(label_rows).to_csv(self.output_dir / "labels.csv", index=False)
 
-        print(f"\n🎉 Dataset ready!")
+        print(f"\nDataset ready!")
         print(f"Total graphs created: {count}")
 
 

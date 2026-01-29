@@ -49,9 +49,19 @@ desktop.ini
 data/raw/
 data/processed/
 
-# Model-ready graphs & labels
-data/model_ready/graphs/
-data/model_ready/labels.csv
+# Model-ready data
+data/model_ready/
+data/auto_processed/
+data/processed/
+
+# Large archives
+*.tar
+*.tar.gz
+*.tgz
+*.zip
+
+# CSV exports (large datasets)
+*.csv
 
 # Cached data
 cache/

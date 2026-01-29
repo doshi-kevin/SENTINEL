@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SENTINEL-Z API Test</title>
+    <style>
+        body { font-family: monospace; background: #111; color: #0ff; padding: 20px; }
+        .result { background: #222; padding: 10px; margin: 10px 0; border: 1px solid #0ff; }
+        .error { color: #f00; }
+        .success { color: #0f0; }
+    </style>
+</head>
+<body>
+    <h1>SENTINEL-Z API Test</h1>
+    <button onclick="testWindows()">Test /api/windows</button>
+    <button onclick="testGraph()">Test /api/graph/0</button>
+    <button onclick="testFullTopology()">Test /api/graph/full</button>
+    <div id="results"></div>
+
+    <script>
+        async function testWindows() {
+            const div = document.getElementById('results');
+            div.innerHTML = '<div class="result">Testing /api/windows...</div>';
+            try {
+                const response = await fetch('/api/windows');
+                const data = await response.json();
+                div.innerHTML = `<div class="result success">✓ Success! Loaded ${data.length} windows<br>First window: ${JSON.stringify(data[0], null, 2)}</div>`;
+            } catch (error) {
+                div.innerHTML = `<div class="result error">✗ Error: ${error.message}</div>`;
+            }
+        }
+
+        async function testGraph() {
+            const div = document.getElementById('results');
+            div.innerHTML = '<div class="result">Testing /api/graph/0...</div>';
+            try {
+                const response = await fetch('/api/graph/0');
+                const data = await response.json();
+                div.innerHTML = `<div class="result success">✓ Success! Loaded graph with ${data.nodes.length} nodes and ${data.links.length} edges<br>First node features: ${Object.keys(data.nodes[0]).join(', ')}</div>`;
+            } catch (error) {
+                div.innerHTML = `<div class="result error">✗ Error: ${error.message}</div>`;
+            }
+        }
+
+        async function testFullTopology() {
+            const div = document.getElementById('results');
+            div.innerHTML = '<div class="result">Testing /api/graph/full...</div>';
+            try {
+                const response = await fetch('/api/graph/full');
+                const data = await response.json();
+                div.innerHTML = `<div class="result success">✓ Success! Loaded full topology with ${data.nodes.length} nodes and ${data.links.length} edges</div>`;
+            } catch (error) {
+                div.innerHTML = `<div class="result error">✗ Error: ${error.message}</div>`;
+            }
+        }
+    </script>
+</body>
+</html>

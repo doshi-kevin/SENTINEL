@@ -1,344 +1,215 @@
-Perfect — here is a **professional, clean, GitHub-ready `README.md`** for Sentinel, including:
+# SENTINEL-Z: An Intelligent Security Storyteller
 
-* Clear project description
-* Architecture overview
-* What each file/folder does (based on your tree)
-* How the system works end-to-end
-* How to install + run backend
-* How to run visualizer
-* Future roadmap
-* Tech stack
-* Screenshots placeholders
-* Research context
-
-You can copy-paste directly into GitHub.
+### **Executive Summary**
+SENTINEL-Z is an advanced "Intelligent Watchdog" designed to protect computer systems from sneaky, high-level hackers (known as APTs). Unlike traditional security software that looks for "wanted posters" of known viruses, SENTINEL-Z watches exactly how programs behave and talk to each other. It then turns complex computer data into a human-readable "attack story" so that security teams can understand exactly what happened in seconds.
 
 ---
 
-# ✅ **README.md (Complete File)**
+## 🔄 **The Pivot: From "Geometry" to "Intent"**
+Initially, this project focused on **Structural Analysis**. We were looking at the "shape" of computer interactions—think of it like looking at a crowd from a satellite and trying to spot a pickpocket by how they move through the street. 
 
-```md
-# 🛡️ SENTINEL  
-### Temporal Graph Neural Network–Powered Cyber Attack Detection & Explainability System
+**The Problem:** We discovered that normal programs (like Windows updates) often move in weird "shapes" too. This caused way too many false alarms (noise).
 
-SENTINEL is an end-to-end cybersecurity research system that ingests low-level provenance events (DARPA OpTC or similar logs), converts them into graph windows, sequences them over time, and classifies each sequence as **benign** or **malicious** using a Temporal Graph Neural Network (TGNN).  
+**The Pivot:** We shifted to **Semantic Risk Analysis**. Now, we don't just look at the *shape* of the movement; we look at the *actions* being taken.
+*   **Old Way:** "There is a person running in the hallway." (Is it a runner or a thief?)
+*   **New Way (Pivot):** "There is a person running in the hallway *holding a stolen TV*." 
 
-It includes:
-
-- A full data pipeline (events → windows → graphs → sequences → tensors)
-- Static GNN + Temporal GNN training modules
-- Explainability (temporal attention + node importance)
-- A FastAPI backend serving graphs & explanations
-- A fully interactive **Cyber SOC visualizer UI** built with D3.js
-- A natural-language “Attack Story Generator”
-
-This project demonstrates how **temporal patterns in graph-structured activity** can be used to detect APT-like attack chains.
+By combining the "shape" of the network with the "meaning" of the computer commands (using our new **Semantic Risk Engine**), we've made the system much more accurate.
 
 ---
 
-# 🚀 Features
+## 🛠️ **Learn the Technologies (Simply Explained)**
 
-### ✔ Provenance Graph Construction  
-Converts raw event logs into directed graphs with rich engineered features.
+### 1. **Provenance Graphs (The Family Tree of Data)**
+Imagine every action on a computer (opening a file, sending an email) is a dot, and every connection is a line. A "Provenance Graph" is a massive map connecting these dots. It shows us the history of every file—who created it, who moved it, and where it went.
 
-### ✔ GNN & TGNN Models  
-GraphSAGE for static classification  
-TGNN with temporal attention for sequential reasoning.
+### 2. **Zero-Shot Detection (The "Stranger Danger" Rule)**
+Most security systems need to be shown thousands of examples of an attack to "learn" it. **Zero-Shot** means our system can spot a completely new, never-before-seen attack because it knows what "dangerous behavior" looks like fundamentally, even if it has never seen that specific hacker before.
 
-### ✔ Explainability Module  
-Extracts:
-- Node importance  
-- Temporal attention  
-- Model reasoning  
-- Attack timeline  
-
-### ✔ Fully Interactive UI  
-- Graph visualization  
-- Node-inspection panel  
-- Attack summary panel  
-- Human-readable incident reconstruction  
-
-### ✔ FastAPI Backend  
-Serves graphs, explanations, and supports real-time expansion.
+### 3. **The Semantic Risk Engine (The Security Rulebook)**
+This is a sophisticated "filter" we built. It knows that certain programs (like `PowerShell`) are powerful tools that hackers love to use. It categorizes every action as "Safe," "Suspicious," or "Dangerous" based on a rulebook of hacker behaviors (LOLBins).
 
 ---
 
-# 🧠 High-Level Architecture
+## 🎯 **What we are achieving and HOW?**
+
+### **The Objective**
+To reduce **"Alert Fatigue."** Security officers are often overwhelmed by thousands of false alarms. We want to provide one single, high-confidence alert that says: *"This is definitely an attack, and here is exactly how it happened."*
+
+### **The "How" (The 4-Step Process)**
+1.  **Windowing:** we slice millions of computer events into 1-second "snapshots."
+2.  **Structural Check:** We use math (Artificial Intelligence) to see if the *shape* of the snapshot looks unusual.
+3.  **Behavioral Check (The Pivot):** We use our Semantic Engine to check if the *actions* in that snapshot are dangerous.
+4.  **Fusion:** we combine both scores. A snapshot is only flagged if it looks weird AND acts dangerous.
+
+---
+
+## 📈 **Our Recent Breakthrough (Phase 4 Results)**
+
+We tested the combined approach against **6,051 time windows** (85 attacks, 5,966 benign) from the DARPA Transparent Computing dataset:
+
+### Key Metrics
+| Metric | Phase 3 (Before Pivot) | Phase 4 (After Pivot) | Improvement |
+|--------|------------------------|----------------------|-------------|
+| ROC-AUC | 0.6572 | **0.8628** | +31% |
+| Precision | 2.61% | **8.09%** | +210% |
+| Recall | 18.82% | **22.35%** | +19% |
+| False Positive Rate | 10.01% | **3.62%** | -64% |
+
+### What These Numbers Mean
+- **ROC-AUC of 0.86**: The system correctly ranks attacks higher than benign activity 86% of the time
+- **Reduced False Alarms by 64%**: From ~600 false alarms down to ~215
+- **Triple Precision**: When SENTINEL-Z flags something, it's now 3x more likely to be a real attack
+
+---
+
+## 📊 **Visual Analysis**
+
+### 1. Score Distribution: Can We Separate Attacks from Normal?
+![Score Distribution](scripts/visualizations/score_distributions.png)
+
+The key insight: **Attack windows cluster between scores 18-28, while benign windows mostly stay below 22.** This separation is what makes detection possible.
+
+### 2. ROC Curve: Overall Detection Quality
+![ROC Curve](scripts/visualizations/roc_curve.png)
+
+The curve shows how well we can trade off between catching attacks (Recall) and avoiding false alarms (FPR). Area Under Curve = **0.8628** (1.0 = perfect, 0.5 = random guessing).
+
+### 3. Detection Timeline: Every Attack Visualized
+![Detection Timeline](scripts/visualizations/detection_timeline.png)
+
+This shows all 6,051 windows over time:
+- **Green triangles**: Attacks we detected (19/85)
+- **Red triangles**: Attacks we missed (66/85)
+- **Orange X's**: False alarms (215)
+
+### 4. The Precision-Recall Tradeoff
+![Precision Recall](scripts/visualizations/precision_recall_tradeoff.png)
+
+Security teams must choose: catch more attacks (high recall) or have fewer false alarms (high precision). This plot helps pick the right threshold.
+
+### 5. Attack Detection Summary
+![Attack Summary](scripts/visualizations/attack_summary.png)
+
+All 85 attacks ranked by risk score. Green bars = detected, Red bars = missed. The threshold line shows our detection cutoff.
+
+### 6. Threshold Selection Guide
+![Multi Threshold](scripts/visualizations/multi_threshold_comparison.png)
+
+Different thresholds for different use cases:
+- **Threshold 20**: Catch 81% of attacks, but 20% false alarm rate
+- **Threshold 23**: Catch 22% of attacks, only 3.6% false alarms (current setting)
+
+---
+
+## 🔬 **The Data Behind the Results**
+
+### Dataset: DARPA Transparent Computing (Engagement 5)
+| Metric | Value |
+|--------|-------|
+| Total Events | 9.7 million |
+| Time Windows | 6,051 (1-second snapshots) |
+| Attack Windows | 85 (1.4%) |
+| Benign Windows | 5,966 (98.6%) |
+
+### The Imbalance Challenge
+Finding 85 attacks in 6,051 windows is like finding 85 needles in a haystack. Even a 4% false positive rate means ~240 false alarms vs only 85 real attacks. This is why **precision is inherently low** in APT detection.
+
+---
+
+## 🚀 **The Future Plan**
+
+### Phase 5: Narrative Engine (Next)
+Successful detection isn't enough; humans need to understand it.
+
+**Goal:** Transform mathematical scores into plain-English attack stories:
 
 ```
+CURRENT OUTPUT:
+  Window 12345: Score 24.5, Label: SUSPICIOUS
+  Risk Factors: ['unknown_subject', 'high_network_activity']
 
-Raw Events  →  Window Generator (1s)
-→ Graph Constructor (NetworkX)
-→ Feature Engineering (18+ features)
-→ Graph Export (JSON)
-→ Sequence Extractor (T1–T3)
-→ PyTorch Geometric Datasets
-→ GNN / TGNN
-→ Explainability Engine
-→ FastAPI Backend
-→ D3.js Visualizer + Attack Story Panel
+PHASE 5 OUTPUT:
+  "At 11:42 AM, a suspicious PowerShell process was spawned by explorer.exe.
+   The script used encoded commands to download a file via certutil.exe from
+   external IP 203.0.113.50. This behavior matches 'Living off the Land'
+   techniques commonly used by APT groups.
 
+   Recommended: Isolate machine, capture memory dump, check for lateral movement."
+```
+
+### Phase 6: MITRE ATT&CK Classification
+Map detected anomalies to the industry-standard attack framework:
+- T1059.001: PowerShell Execution
+- T1105: Ingress Tool Transfer
+- T1071: Application Layer Protocol
+
+### Phase 7: Real-Time Streaming
+Move from batch analysis to live detection:
+```
+Live System Logs → Kafka Queue → SENTINEL-Z → Alert in < 1 second
+```
+
+### Phase 8: Cross-Dataset Validation
+Prove generalization on other datasets:
+- DARPA TC E3 (CADETS, TRACE, THEIA)
+- Different operating systems (Linux, FreeBSD)
+
+---
+
+## 📁 **Project Structure**
+
+```
+SENTINEL/
+├── data/
+│   ├── auto_processed/          # Parsed events (9.7M rows)
+│   └── model_ready/
+│       ├── graphs/              # 6,051 JSON graph files
+│       ├── detection/           # Phase 4 results
+│       └── labels.csv           # Ground truth
+├── src/
+│   ├── pipeline/                # Data processing
+│   ├── sentinel_z/              # Detection engine
+│   │   ├── zero_shot_detector.py
+│   │   └── semantic_risk_engine.py
+│   └── api/                     # FastAPI backend
+├── scripts/
+│   ├── visualize_detection.py   # Generate all plots
+│   └── visualizations/          # Output images
+├── frontend/                    # Next.js dashboard
+└── roadmap/                     # Phase documentation
 ```
 
 ---
 
-# 🗂 Project Structure
+## 🚀 **Quick Start**
 
-```
+```bash
+# 1. Run detection pipeline
+python -c "from src.sentinel_z.semantic_risk_engine import run_phase4_pipeline; run_phase4_pipeline()"
 
-src/
-├── api/
-│   ├── server.py                 # FastAPI backend
-│   ├── schemas.py                # Response models
-│   ├── utils.py                  # Formatting helpers
-│
-├── dataset/
-│   ├── sentinel_pyg_dataset.py   # Static graph → PyG
-│   └── temporal_graph_dataset.py # Sequence → PyG
-│
-├── explainability/
-│   ├── explanation_generator.py  # Builds explain JSONs
-│   ├── importance_extractor.py   # Per-node scores
-│   └── temporal_attention.py     # T1/T2/T3 weights
-│
-├── models/
-│   ├── gnn_sage.py               # Static GNN
-│   ├── tgnn.py                   # Temporal GNN
-│   └── tgn.py                    # TGNN base
-│
-├── pipeline/
-│   ├── build_dataset.py          # Full dataset pipeline
-│   ├── event_loader.py           # Loads events.csv
-│   ├── feature_engineer.py       # 18+ node features
-│   ├── graph_constructor.py      # Builds NX graph
-│   ├── graph_exporter.py         # Saves JSON graphs
-│   ├── sequence_extractor.py     # Builds 3-window sequences
-│   └── window_generator.py       # Generates 1s windows
-│
-├── preprocessing/
-│   ├── build_graph_dataset.py    # Early builder
-│   ├── find_interesting_patterns.py
-│   └── simple_data_exploration.py
-│
-├── realtime/
-│   └── sentinel_engine.py        # Future real-time engine
-│
-├── training/
-│   ├── train_gnn.py              # Train static GNN
-│   ├── train_tgnn.py             # Train TGNN
-│   ├── eval_gnn.py               # Evaluate GNN
-│   ├── eval_tgnn.py              # Evaluate TGNN
-│   └── explain_tgnn.py           # Generate explanation JSONs
-│
-visualizer/
-├── index.html                    # UI
-├── graph.js                      # D3 graph logic
-├── style.css                     # Layout + theme
-└── story_generator.js            # Natural-language incident summary
+# 2. Generate visualizations
+python scripts/visualize_detection.py
 
-````
-
----
-
-# ⚙️ Installation & Startup Guide
-
-## 1️⃣ Create virtual environment
-
-```sh
-python -m venv venv
-venv\Scripts\activate
-````
-
-## 2️⃣ Install dependencies
-
-```sh
-pip install -r requirements.txt
-```
-
-(If PyTorch Geometric needed, install CPU version)
-
-## 3️⃣ Build the Dataset (FIRST TIME ONLY)
-
-Make sure `data/processed/events.csv` exists.
-
-```sh
-python -m src.pipeline.build_dataset
-```
-
-This produces:
-
-* `data/model_ready/graphs/xx.json`
-* `data/model_ready/labels.csv`
-* `explanations/*.json` (after explanation step)
-
-## 4️⃣ Train the Models
-
-### Train static GNN:
-
-```sh
-python -m src.training.train_gnn
-```
-
-### Train Temporal GNN (TGNN):
-
-```sh
-python -m src.training.train_tgnn
-```
-
-## 5️⃣ Generate Explanations
-
-```sh
-python -m src.training.explain_tgnn
-```
-
-## 6️⃣ Start FastAPI Backend
-
-```sh
+# 3. Start API server
 uvicorn src.api.server:app --reload --port 8000
 ```
 
-API will be available at:
+---
 
-```
-http://127.0.0.1:8000
-```
+## 📚 **Glossary**
 
-## 7️⃣ Launch Visualizer (Frontend)
-
-Open:
-
-```
-visualizer/index.html
-```
-
-Or use VSCode “Live Server”.
-
-The UI supports:
-
-* Enter sequence ID (0–52)
-* Click **Load**
-* View:
-
-  * Graph
-  * Node details
-  * Attack summary (timeline + reasoning)
+| Term | Simple Explanation |
+|------|-------------------|
+| **APT** | Advanced Persistent Threat - sophisticated hackers who hide for months |
+| **Provenance Graph** | Map of how processes, files, and networks interact |
+| **Zero-Shot** | Detecting attacks without prior examples of that specific attack |
+| **LOLBin** | "Living Off the Land Binary" - legitimate tools hackers abuse |
+| **ROC-AUC** | Score 0-1 measuring ranking quality (0.5=random, 1.0=perfect) |
+| **Precision** | When we say "attack", how often we're right |
+| **Recall** | Of all actual attacks, how many did we catch |
 
 ---
 
-# 🧪 Example Endpoints
+*Last Updated: January 21, 2026*
 
-### Get graph window
-
-```
-GET /graph/27
-```
-
-### Get explanation
-
-```
-GET /explain/27
-```
-
----
-
-# 🧵 How Sentinel Works (Technical Summary)
-
-### 1. **Windowing**
-
-We bucket raw OS events into 1-second windows.
-
-### 2. **Graph Construction**
-
-Each window becomes a directed graph:
-
-* Nodes: processes, files, sockets
-* Edges: READ, WRITE, EXECUTE, SEND
-* Features: degree, entropy, activity, timestamps, etc.
-
-### 3. **Temporal Grouping**
-
-Three consecutive windows form a sequence:
-
-```
-[t-2, t-1, t]
-```
-
-### 4. **TGNN**
-
-Each graph is encoded → combined with temporal attention → final classification.
-
-### 5. **Explainability**
-
-We extract:
-
-* Which timestep was most important
-* Which node influenced the decision
-* Timeline of events
-* Human-readable attack story
-
-### 6. **Visualizer**
-
-Shows:
-
-* Graph (D3)
-* Node details sidebar
-* Attack explanation panel
-
----
-
-# 🔮 Future Roadmap (Breakthrough Phase)
-
-### Phase 1 — Real-Time Detection
-
-Convert TGNN into a streaming inference engine.
-
-### Phase 2 — Attack Classification
-
-Label attacks as:
-
-* Reconnaissance
-* Lateral movement
-* Privilege escalation
-* Mass file access
-* Data exfiltration
-
-### Phase 3 — MITRE ATT&CK Mapping
-
-Automatically map events to TTPs.
-
-### Phase 4 — Incident Report PDF
-
-Automatically generate SOC-style PDF reports.
-
-### Phase 5 — LLM-Augmented Analyst
-
-Use GPT/Gemini to:
-
-* Summarize incidents
-* Correlate multiple graphs
-* Suggest remediation
-
----
-
-# ⭐ Final Notes
-
-SENTINEL is now a complete, research-grade end-to-end cybersecurity system:
-
-* Data engineering
-* GNN + temporal modeling
-* Explainability
-* API
-* Visualization
-* Automation
-
-It is ready for:
-
-* Research publications
-* Hackathons
-* Demonstrations
-* Resume/portfolio
-* Future startup use
-
----
-
-If you want, I can also generate a **README with diagrams**, or a **research-style PDF**, or a **GitHub project landing page**.
