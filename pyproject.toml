@@ -1,0 +1,83 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sentinel-z"
+version = "0.1.0"
+description = "Zero-shot APT detector that turns provenance graphs into plain-English attack stories"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Kevin Doshi", email = "kevin.doshi2@spit.ac.in" }]
+keywords = ["security", "apt", "anomaly-detection", "provenance", "graph-neural-network", "darpa-tc"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Information Technology",
+    "Topic :: Security",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+# Core runtime — enough to load Phase 4 results, score new windows, and serve the API.
+dependencies = [
+    "pandas>=2.0",
+    "numpy>=1.24",
+    "networkx>=3.0",
+    "fastavro>=1.9",         # DARPA TC Avro parsing
+    "scikit-learn>=1.3",     # IsolationForest, LOF (Phase 3)
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.27",
+    "pydantic>=2.5",
+]
+
+[project.optional-dependencies]
+# Phase 2 self-supervised encoder training (heavy)
+ml = [
+    "torch>=2.1",
+    "torch-geometric>=2.4",
+]
+# Plot generation (Phase 4 visualizations)
+viz = [
+    "matplotlib>=3.7",
+    "seaborn>=0.13",
+]
+# Word report generation (scripts/generate_*report*.py)
+docs = [
+    "python-docx>=1.1",
+]
+# Development
+dev = [
+    "pytest>=7.4",
+    "pytest-cov>=4.1",
+    "ruff>=0.3",
+]
+# Convenience meta-extra: install everything
+all = [
+    "sentinel-z[ml,viz,docs,dev]",
+]
+
+[project.urls]
+Homepage = "https://github.com/doshi-kevin/SENTINEL"
+Repository = "https://github.com/doshi-kevin/SENTINEL"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["sentinel_z*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-ra"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = ["E501"]  # line length handled by formatter

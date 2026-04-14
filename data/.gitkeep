@@ -1,0 +1,6 @@
+# Placeholder so the data/ directory is committed even though its contents
+# are gitignored. Drop the DARPA TC engagement files into:
+#   data/raw/                 — raw .bin.gz Avro logs
+#   data/auto_processed/      — parsed events + 6,051 graph JSONs (regenerated)
+#   data/model_ready/         — labels.csv, phase4_results.json, etc.
+# See docs/PROJECT_PLAN.md and docs/roadmap/01_data_foundation.md for details.
