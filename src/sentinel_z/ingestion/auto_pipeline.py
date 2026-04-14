@@ -493,7 +493,7 @@ class AutoPipeline:
         events_df = events_df.sort_values('timestamp')
 
         # Build semantic resolver
-        from .semantic_resolver import SemanticResolver
+        from ..detection.semantic_resolver import SemanticResolver
         resolver = SemanticResolver()
         resolver.build_profiles_from_events(events_df)
         print(f"Built profiles for {len(resolver.entity_profiles)} entities")

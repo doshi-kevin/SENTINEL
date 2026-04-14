@@ -541,7 +541,7 @@ async def ingest_data_file(
 async def process_uploaded_file(file_path: str):
     """Background task to process uploaded file."""
     try:
-        from src.sentinel_z.auto_pipeline import AutoPipeline
+        from src.sentinel_z.ingestion.auto_pipeline import AutoPipeline
 
         pipeline = AutoPipeline(output_dir="data/auto_processed")
         counts = pipeline.ingest(file_path)

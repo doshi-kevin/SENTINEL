@@ -20,8 +20,8 @@ from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass, field
 from collections import defaultdict
 
-from .semantic_graph import SemanticGraph, SemanticGraphTransformer
-from .semantic_resolver import SemanticResolver, SemanticEntityType, SemanticEdgeType
+from ..detection.semantic_graph import SemanticGraph, SemanticGraphTransformer
+from ..detection.semantic_resolver import SemanticResolver, SemanticEntityType, SemanticEdgeType
 
 
 @dataclass

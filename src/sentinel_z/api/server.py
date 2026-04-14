@@ -12,7 +12,7 @@ import os
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-from src.api.endpoints_sentinel_z import router as sentinel_z_router
+from .endpoints_sentinel_z import router as sentinel_z_router
 
 app = FastAPI(title="Sentinel-Z APT Detection API")
 
