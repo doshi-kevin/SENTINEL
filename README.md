@@ -160,24 +160,31 @@ Prove generalization on other datasets:
 ## 📁 **Project Structure**
 
 ```
-SENTINEL/
-├── data/
-│   ├── auto_processed/          # Parsed events (9.7M rows)
+sentinel-z/
+├── data/                                # (gitignored) raw + processed datasets
+│   ├── auto_processed/                  #   parsed events (9.7M rows)
 │   └── model_ready/
-│       ├── graphs/              # 6,051 JSON graph files
-│       ├── detection/           # Phase 4 results
-│       └── labels.csv           # Ground truth
-├── src/
-│   ├── pipeline/                # Data processing
-│   ├── sentinel_z/              # Detection engine
-│   │   ├── zero_shot_detector.py
-│   │   └── semantic_risk_engine.py
-│   └── api/                     # FastAPI backend
+│       ├── graphs/                      #   6,051 JSON graph files
+│       ├── detection/                   #   Phase 4 results
+│       └── labels.csv                   #   ground truth
+├── src/sentinel_z/                      # The package
+│   ├── pipeline/                        #   ETL building blocks
+│   ├── ingestion/                       #   end-to-end DARPA ingest
+│   ├── encoder/                         #   Phase 2 self-supervised encoder
+│   ├── detection/                       #   Phase 3 + 4 detectors
+│   │   ├── zero_shot_detector.py        #     structural baseline
+│   │   ├── semantic_risk_engine.py      #     Phase 4 fusion (headline)
+│   │   ├── semantic_resolver.py
+│   │   └── semantic_graph.py
+│   ├── narrative/                       #   Phase 5 attack-story scaffold
+│   ├── realtime/                        #   Phase 6 streaming (stubs)
+│   └── api/                             #   FastAPI server
 ├── scripts/
-│   ├── visualize_detection.py   # Generate all plots
-│   └── visualizations/          # Output images
-├── frontend/                    # Next.js dashboard
-└── roadmap/                     # Phase documentation
+│   ├── visualize_detection.py           # generate all plots
+│   └── visualizations/                  # output images
+├── frontend/                            # Next.js dashboard
+├── docs/                                # PROJECT_PLAN, roadmap/, reports/
+└── tests/                               # smoke tests
 ```
 
 ---
@@ -186,13 +193,13 @@ SENTINEL/
 
 ```bash
 # 1. Run detection pipeline
-python -c "from src.sentinel_z.semantic_risk_engine import run_phase4_pipeline; run_phase4_pipeline()"
+python -c "from src.sentinel_z.detection.semantic_risk_engine import run_phase4_pipeline; run_phase4_pipeline()"
 
 # 2. Generate visualizations
 python scripts/visualize_detection.py
 
 # 3. Start API server
-uvicorn src.api.server:app --reload --port 8000
+uvicorn src.sentinel_z.api.server:app --reload --port 8000
 ```
 
 ---

@@ -16,8 +16,8 @@ The bridge between the Python backend (Detection Engine) and the Frontend (Dashb
 ### `/stream` (WebSocket)
 *   **WS:** Pushes real-time graph updates to the 3D visualizer.
 
-## 3. Current Status: ❌ NOT STARTED
-*   `src/api` directory exists but is empty.
+## 3. Current Status: 🟡 PARTIAL
+*   `src/sentinel_z/api/` exists with a working `/sentinel-z/*` router and a small `/status` + `/graph/{seq_id}` set in `server.py`. WebSocket `/stream` not yet built.
 
 ## 4. Architecture & Optimization
 *   **FastAPI + Uvicorn:** Standard high-perf python stack.
@@ -34,5 +34,5 @@ The bridge between the Python backend (Detection Engine) and the Frontend (Dashb
 
 ## 6. Implementation Plan
 1.  **Schema Definition:** Define the `Alert` and `Graph` response models.
-2.  **Server Setup:** Initialize FastAPI app in `src/api/server.py`.
+2.  **Server Setup:** Initialize FastAPI app in `src/sentinel_z/api/server.py`.
 3.  **Integration:** Connect the `stage_6_realtime` output queue to the WebSocket broadcaster.

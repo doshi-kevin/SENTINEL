@@ -25,7 +25,7 @@ $$S(g) = \alpha \cdot L_{contrastive} + \beta \cdot L_{prediction}$$
 *   If the embedding is far from its temporal neighbors (high contrastive loss), the context is broken.
 
 ## 3. Current Status: ❌ NOT STARTED
-*   We have the `ZeroShotDetector` class skeleton in `self_supervised_encoder.py`.
+*   We have the `ZeroShotDetector` class skeleton in `src/sentinel_z/encoder/self_supervised_encoder.py`.
 *   We haven't calibrated the thresholds or run inference on the attack dataset.
 
 ## 4. Best Accuracy Strategies

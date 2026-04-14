@@ -57,30 +57,31 @@ SENTINEL-Z is an Advanced Persistent Threat (APT) detection system that analyzes
 
 #### 1.5 Project Structure Cleanup
 - Removed legacy code, old models, unused documentation
-- Clean folder structure:
+- Clean folder structure (post-restructure, see README for full tree):
   ```
-  SENTINEL/
-  ├── data/
-  │   ├── auto_processed/   # 6,018 graphs + labels
-  │   └── raw/              # Original DARPA data
-  ├── frontend/             # Next.js dashboard
-  ├── src/
-  │   ├── api/              # FastAPI backend
-  │   ├── pipeline/         # Data processing
-  │   ├── realtime/         # Stream ingestion (scaffolding)
-  │   └── sentinel_z/       # ML pipeline code
-  └── PROJECT_PLAN.md
+  sentinel-z/
+  ├── data/                       # (gitignored) raw + processed
+  ├── frontend/                   # Next.js dashboard
+  ├── src/sentinel_z/
+  │   ├── pipeline/               # ETL building blocks
+  │   ├── ingestion/              # end-to-end DARPA ingest
+  │   ├── encoder/                # self-supervised GNN
+  │   ├── detection/              # Phase 3 + 4 detectors
+  │   ├── narrative/              # Phase 5 attack stories
+  │   ├── realtime/               # Phase 6 streaming (stubs)
+  │   └── api/                    # FastAPI backend
+  └── docs/                       # PROJECT_PLAN, roadmap/, reports/
   ```
 
 ### Phase 1 Deliverables
 | Deliverable | Location | Status |
 |-------------|----------|--------|
-| Event extraction pipeline | `src/sentinel_z/auto_pipeline.py` | ✅ |
-| Graph dataset builder | `src/sentinel_z/build_large_dataset.py` | ✅ |
+| Event extraction pipeline | `src/sentinel_z/ingestion/auto_pipeline.py` | ✅ |
+| Graph dataset builder | `src/sentinel_z/ingestion/build_large_dataset.py` | ✅ |
 | 6,018 graph JSON files | `data/auto_processed/graphs/` | ✅ |
 | Labels CSV | `data/auto_processed/labels.csv` | ✅ |
 | Visualization dashboard | `frontend/` | ✅ |
-| API endpoints | `src/api/` | ✅ |
+| API endpoints | `src/sentinel_z/api/` | ✅ |
 
 ---
 
@@ -109,8 +110,8 @@ Train a model to distinguish attack windows from benign windows using graph stru
 - Inference Time: <100ms per window
 
 ### Files to Create/Modify
-- `src/sentinel_z/train_encoder.py` (exists, needs completion)
-- `src/sentinel_z/anomaly_detector.py` (new)
+- `src/sentinel_z/encoder/train_encoder.py` (exists, needs completion)
+- `src/sentinel_z/detection/anomaly_detector.py` (new)
 - `data/auto_processed/model.pt` (trained model)
 
 ---
@@ -140,8 +141,8 @@ scan the internal network and establish a connection to 10.0.0.50
 ```
 
 ### Files to Create
-- `src/sentinel_z/behavior_classifier.py`
-- `src/sentinel_z/story_generator.py`
+- `src/sentinel_z/detection/behavior_classifier.py`
+- `src/sentinel_z/narrative/story_generator.py`
 
 ---
 

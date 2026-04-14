@@ -244,8 +244,8 @@ Results validated only on DARPA TC E5 (FiveDirections). Generalization to other 
 
 | File | Purpose | Lines |
 |------|---------|-------|
-| `src/sentinel_z/semantic_risk_engine.py` | Main Phase 4 implementation | ~450 |
-| `src/api/endpoints_sentinel_z.py` | API endpoints for results | ~200 |
+| `src/sentinel_z/detection/semantic_risk_engine.py` | Main Phase 4 implementation | ~450 |
+| `src/sentinel_z/api/endpoints_sentinel_z.py` | API endpoints for results | ~200 |
 | `scripts/visualize_detection.py` | Visualization suite | ~350 |
 
 ### Key Classes

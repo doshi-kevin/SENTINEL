@@ -14,7 +14,7 @@ The `SentinelZEncoder` moves beyond simple autoencoders by combining three objec
 
 ## 3. Current Status: ⚠️ PARTIAL
 *   **Accomplished:**
-    *   Advanced model architecture defined in `src/sentinel_z/self_supervised_encoder.py`.
+    *   Advanced model architecture defined in `src/sentinel_z/encoder/self_supervised_encoder.py`.
 *   **Missing:**
     *   The training script `train_encoder.py` relies on a dummy model.
     *   Model has not been trained on the full dataset.
