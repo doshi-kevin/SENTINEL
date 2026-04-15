@@ -240,7 +240,29 @@ directory) to respect the user's "single-source README" mandate from the prior
 restructure cycle. Specs are working docs that get superseded by code; they
 shouldn't pollute the project's narrative documentation.
 
-### 11.4 Updated verification gate
+### 11.4 Drive total size + smoke-mode (Surprise 3)
+The 338 fivedirections chunks aren't ~1 MB each as estimated — they're ~50 MB each, totaling **~17 GB**. The README's "292 MB compressed" figure was post-parsing intermediate CSVs, not raw download. User picked **option 3** (sample first 5 chunks per host = 15 chunks ≈ ~750 MB, ~20 min).
+
+Added to `download_e5.py`:
+- `--max-chunks-per-host N` flag (numerical chunk-sort, not lex)
+- Exclusion of the 3 multi-GB **unsplit** per-host bundles (`ta1-fivedirections-N-e5-official-N.bin.gz`) — those duplicate the chunk data
+- `flush=True` on per-file prints so background-task stdout is observable
+
+Added to `Makefile`: `download-smoke` (= `--max-chunks-per-host 5`) and `smoke` (= download-smoke + ingest + verify) targets.
+
+Final smoke-mode file count: **21 files** (15 chunks + bins.md5sum + 2 ground-truth + 3 top-level READMEs).
+
+### 11.5 Path mismatch: auto_processed → model_ready (Surprise 4)
+`run_phase4_pipeline()` in `semantic_risk_engine.py` is hard-coded to read from `data/model_ready/{graphs,labels.csv}`, but `AutoPipeline.build_dataset()` writes to `data/auto_processed/`. Originally the project must have had a manual "promote" step that wasn't captured.
+
+Added `promote_to_model_ready()` in `ingest_e5.py`:
+- Symlinks `data/auto_processed/graphs` → `data/model_ready/graphs` (cheap)
+- Falls back to `shutil.copytree` if Windows lacks `SeCreateSymbolicLinkPrivilege`
+- Copies `labels.csv` (small, just copy)
+
+This preserves the conceptual separation (auto_processed = parser output, model_ready = ML-input ready) without mutating `run_phase4_pipeline()` itself. Runs on every `ingest_e5.py` invocation (success path or idempotent skip).
+
+### 11.6 Updated verification gate
 Replaces §6 for this run. The original §6 becomes the gate for the follow-up
 task A.f1 once E5 ground truth is patched.
 

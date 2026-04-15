@@ -26,8 +26,52 @@ OUT_DIR = REPO_ROOT / "data" / "auto_processed"
 GRAPHS_DIR = OUT_DIR / "graphs"
 LABELS_CSV = OUT_DIR / "labels.csv"
 
-# Sanity threshold — README says ~6,051; allow some drift across re-runs.
-EXPECTED_MIN_GRAPHS = 5_000
+# Phase 4's run_phase4_pipeline() reads from data/model_ready/ rather than
+# data/auto_processed/, so after build_dataset() finishes we promote the
+# graphs + labels into the model-ready location.
+MODEL_READY_DIR = REPO_ROOT / "data" / "model_ready"
+MODEL_READY_GRAPHS = MODEL_READY_DIR / "graphs"
+MODEL_READY_LABELS = MODEL_READY_DIR / "labels.csv"
+
+# Sanity threshold — README says ~6,051 graphs at the full 338-chunk dataset.
+# Smoke runs (--max-chunks-per-host 5) produce far fewer, so the idempotency
+# floor is set low; the verify script enforces its own (also-relaxed) floor.
+EXPECTED_MIN_GRAPHS_SMOKE = 50
+
+
+def promote_to_model_ready() -> None:
+    """Copy graphs/ and labels.csv from auto_processed/ to model_ready/.
+
+    run_phase4_pipeline() in semantic_risk_engine.py is hard-coded to read
+    from ``data/model_ready/{graphs,labels.csv}``. Rather than mutate that
+    function, we maintain the convention: ``auto_processed/`` is the parser
+    output; ``model_ready/`` is the ML-input-ready snapshot.
+    """
+    import shutil
+
+    if not LABELS_CSV.is_file() or not GRAPHS_DIR.is_dir():
+        return
+
+    MODEL_READY_DIR.mkdir(parents=True, exist_ok=True)
+
+    # Replace any prior model_ready/graphs/ symlink-or-dir
+    if MODEL_READY_GRAPHS.exists() or MODEL_READY_GRAPHS.is_symlink():
+        if MODEL_READY_GRAPHS.is_symlink() or MODEL_READY_GRAPHS.is_file():
+            MODEL_READY_GRAPHS.unlink()
+        else:
+            shutil.rmtree(MODEL_READY_GRAPHS)
+
+    # Try symlink first (cheap). Fall back to copytree on Windows when the
+    # process lacks SeCreateSymbolicLinkPrivilege.
+    try:
+        MODEL_READY_GRAPHS.symlink_to(GRAPHS_DIR.resolve(), target_is_directory=True)
+        print(f"  symlinked {MODEL_READY_GRAPHS} -> {GRAPHS_DIR}")
+    except OSError:
+        shutil.copytree(GRAPHS_DIR, MODEL_READY_GRAPHS)
+        print(f"  copied   {GRAPHS_DIR} -> {MODEL_READY_GRAPHS}")
+
+    shutil.copy2(LABELS_CSV, MODEL_READY_LABELS)
+    print(f"  copied   {LABELS_CSV} -> {MODEL_READY_LABELS}")
 
 
 def main() -> int:
@@ -53,13 +97,14 @@ def main() -> int:
         raw_files = raw_files[: args.max_files]
         print(f"--max-files {args.max_files}: ingesting first {len(raw_files)} files only")
 
-    # Idempotency check
+    # Idempotency check (use the smoke threshold to avoid re-ingesting smoke runs)
     if not args.force and LABELS_CSV.is_file():
         graph_count = sum(1 for _ in GRAPHS_DIR.glob("*.json")) if GRAPHS_DIR.is_dir() else 0
-        if graph_count >= EXPECTED_MIN_GRAPHS:
+        if graph_count >= EXPECTED_MIN_GRAPHS_SMOKE:
             print(f"Already ingested: {graph_count} graphs at {GRAPHS_DIR}")
             print(f"  labels.csv: {LABELS_CSV}")
             print("  (use --force to re-ingest)")
+            promote_to_model_ready()
             return 0
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -111,6 +156,9 @@ def main() -> int:
     n_graphs = sum(1 for _ in GRAPHS_DIR.glob("*.json")) if GRAPHS_DIR.is_dir() else 0
     print(f"\n[OK] {n_graphs} graphs at {out_path}")
     print(f"     labels: {LABELS_CSV}")
+
+    promote_to_model_ready()
+
     print("next step: python scripts/verify_phase4.py")
     return 0
 

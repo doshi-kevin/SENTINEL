@@ -82,11 +82,17 @@ def write_manifest(target: Path) -> int:
     return count
 
 
-_HOST_RE = __import__("re").compile(r"^(ta1-fivedirections-\d+-e5-official-\d+)\.bin\.(\d+)\.gz$")
+import re
+_HOST_RE = re.compile(r"^(ta1-fivedirections-\d+-e5-official-\d+)\.bin\.(\d+)\.gz$")
+_UNSPLIT_RE = re.compile(r"^ta1-fivedirections-\d+-e5-official-\d+\.bin\.gz$")
 
 
 def filter_fivedirections(items, max_chunks_per_host: int | None = None):
     """Keep only files in Data/fivedirections/, Ground_Truth/, or top-level.
+
+    Excludes the unsplit per-host ``ta1-fivedirections-N-e5-official-N.bin.gz``
+    files — each is multi-GB and contains the same data as the corresponding
+    numbered chunks (.bin.1.gz, .bin.2.gz, ...). We only ingest the chunks.
 
     If ``max_chunks_per_host`` is set, keep only the first N chunks per host
     series (numerically ordered by chunk number). The .md5sum, Ground_Truth/,
@@ -106,8 +112,11 @@ def filter_fivedirections(items, max_chunks_per_host: int | None = None):
                 host = m.group(1)
                 chunk_n = int(m.group(2))
                 fd_chunks.setdefault(host, []).append((chunk_n, it))
+            elif _UNSPLIT_RE.match(name):
+                # Skip the multi-GB unsplit per-host bundles — chunks have the same data.
+                continue
             else:
-                # bins.md5sum or anything non-chunk
+                # bins.md5sum and friends
                 fd_other.append(it)
         elif norm.startswith("Ground_Truth/"):
             gt.append(it)
