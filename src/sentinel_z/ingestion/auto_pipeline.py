@@ -87,31 +87,46 @@ class DARPADataset:
 
     @classmethod
     def from_filename(cls, path: Path) -> 'DARPADataset':
-        """Parse DARPA filename to extract metadata."""
-        # Example: ta1-fivedirections-1-e5-official-1.bin.1.gz
+        """Parse DARPA filename to extract metadata.
+
+        Filenames look like: ``ta1-fivedirections-{HOST}-e5-official-{OFF}.bin.{CHUNK}.gz``
+        We need ``file_num`` to be UNIQUE across (host, chunk) pairs, otherwise
+        intermediate CSVs from different hosts overwrite each other. Encode as
+        ``host * 1000 + chunk`` so:
+            fivedirections-1-...bin.1.gz  -> file_num = 1001
+            fivedirections-2-...bin.5.gz  -> file_num = 2005
+            fivedirections-3-...bin.12.gz -> file_num = 3012
+        """
+        import re
         name = path.name.lower()
-        parts = name.replace('.bin', '').replace('.gz', '').split('-')
 
         team = "unknown"
-        engagement = "unknown"
-        file_num = 1
+        for candidate in ("fivedirections", "theia", "trace", "cadets", "clearscope"):
+            if candidate in name:
+                team = candidate
+                break
 
-        for i, part in enumerate(parts):
-            if part in ['fivedirections', 'theia', 'trace', 'cadets', 'clearscope']:
-                team = part
-            if part.startswith('e') and part[1:].isdigit():
-                engagement = part
-            if part.isdigit():
-                file_num = int(part)
+        m_eng = re.search(r"-(e\d+)-", name)
+        engagement = m_eng.group(1) if m_eng else "unknown"
 
-        source = f"SOURCE_{team.upper()}_{engagement.upper()}"
+        # Host number appears right after the team: "...fivedirections-{HOST}-..."
+        m_host = re.search(rf"{team}-(\d+)-", name)
+        host_num = int(m_host.group(1)) if m_host else 0
+
+        # Chunk number comes from ".bin.{CHUNK}.gz" (may be absent on unsplit bundles)
+        m_chunk = re.search(r"\.bin\.(\d+)\.gz$", name)
+        chunk_num = int(m_chunk.group(1)) if m_chunk else 0
+
+        file_num = host_num * 1000 + chunk_num
+
+        source = f"SOURCE_{team.upper()}_{engagement.upper()}_H{host_num}_C{chunk_num}"
 
         return cls(
             file_path=path,
             team=team,
             engagement=engagement,
             file_num=file_num,
-            source=source
+            source=source,
         )
 
 

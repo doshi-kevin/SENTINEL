@@ -5,7 +5,9 @@
       "Bash(npm install:*)",
       "Bash(npm run dev:*)",
       "Bash(gh repo *)",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "Bash(py -c \" content = open\\(r'C:\\\\Users\\\\conve\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Projects-Sentinel-Z\\\\22c6f27d-f543-4a24-b34b-4776bb5a9d52\\\\tasks\\\\bxr22ur37.output'\\).read\\(\\) lines = content.replace\\(chr\\(13\\), chr\\(10\\)\\).split\\(chr\\(10\\)\\) keep = [L for L in lines if not L.lstrip\\(\\).startswith\\('Processed '\\) and L.strip\\(\\)] for L in keep[-25:]: print\\(L.rstrip\\(\\)\\) \")",
+      "Bash(tasklist /FI \"IMAGENAME eq python.exe\")"
     ]
   }
 }
