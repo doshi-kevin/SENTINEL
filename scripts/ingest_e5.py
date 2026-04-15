@@ -21,6 +21,10 @@ import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+# Project uses `from src.sentinel_z.X import Y` — make src/ resolvable when
+# running this script directly (without `pip install -e .`).
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 RAW_DIR = REPO_ROOT / "data" / "raw" / "e5" / "Data" / "fivedirections"
 OUT_DIR = REPO_ROOT / "data" / "auto_processed"
 GRAPHS_DIR = OUT_DIR / "graphs"

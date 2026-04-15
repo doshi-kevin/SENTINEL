@@ -33,6 +33,8 @@ import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 GRAPHS_DIR = REPO_ROOT / "data" / "auto_processed" / "graphs"
 LABELS_CSV = REPO_ROOT / "data" / "auto_processed" / "labels.csv"
 RESULTS_DIR = REPO_ROOT / "data" / "auto_processed" / "detection"
