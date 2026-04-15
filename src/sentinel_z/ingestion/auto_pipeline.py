@@ -400,9 +400,10 @@ class AutoPipeline:
         pipeline.train()
     """
 
-    def __init__(self, output_dir: str = "data/auto_processed"):
+    def __init__(self, output_dir: str = "data/auto_processed", save_intermediate: bool = False):
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
+        self.save_intermediate = save_intermediate
 
         self.parser = CDMParser()
         self.datasets: List[DARPADataset] = []
@@ -466,7 +467,14 @@ class AutoPipeline:
         return total_counts
 
     def _save_intermediate(self, data: Dict[str, pd.DataFrame], dataset: DARPADataset) -> None:
-        """Save intermediate parsed data."""
+        """Save intermediate parsed data (disabled by default to save disk space).
+
+        Enable with save_intermediate=True if you need per-file CSVs for debugging.
+        Warning: saves ~1.8 GB per file × number of files.
+        """
+        if not self.save_intermediate:
+            return
+
         subdir = self.output_dir / dataset.team / dataset.engagement
         subdir.mkdir(parents=True, exist_ok=True)
 
