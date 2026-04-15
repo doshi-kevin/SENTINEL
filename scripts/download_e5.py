@@ -82,17 +82,44 @@ def write_manifest(target: Path) -> int:
     return count
 
 
-def filter_fivedirections(items):
-    """Keep only files in Data/fivedirections/, Ground_Truth/, or top-level."""
-    keep = []
+_HOST_RE = __import__("re").compile(r"^(ta1-fivedirections-\d+-e5-official-\d+)\.bin\.(\d+)\.gz$")
+
+
+def filter_fivedirections(items, max_chunks_per_host: int | None = None):
+    """Keep only files in Data/fivedirections/, Ground_Truth/, or top-level.
+
+    If ``max_chunks_per_host`` is set, keep only the first N chunks per host
+    series (numerically ordered by chunk number). The .md5sum, Ground_Truth/,
+    and top-level files are always included.
+    """
+    fd_chunks: dict[str, list[tuple[int, object]]] = {}
+    fd_other: list = []
+    gt: list = []
+    top: list = []
+
     for it in items:
         norm = it.path.replace("\\", "/")
+        name = norm.rsplit("/", 1)[-1]
         if norm.startswith("Data/fivedirections/"):
-            keep.append(it)
+            m = _HOST_RE.match(name)
+            if m:
+                host = m.group(1)
+                chunk_n = int(m.group(2))
+                fd_chunks.setdefault(host, []).append((chunk_n, it))
+            else:
+                # bins.md5sum or anything non-chunk
+                fd_other.append(it)
         elif norm.startswith("Ground_Truth/"):
-            keep.append(it)
-        elif "/" not in norm:  # top-level README, event log
-            keep.append(it)
+            gt.append(it)
+        elif "/" not in norm:
+            top.append(it)
+
+    keep = list(fd_other) + list(gt) + list(top)
+    for host, chunks in sorted(fd_chunks.items()):
+        chunks.sort(key=lambda t: t[0])
+        if max_chunks_per_host is not None:
+            chunks = chunks[:max_chunks_per_host]
+        keep.extend(it for _, it in chunks)
     return keep
 
 
@@ -100,11 +127,14 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dry-run", action="store_true",
                         help="enumerate Drive + print what would be downloaded; no fetch")
+    parser.add_argument("--max-chunks-per-host", type=int, default=None,
+                        help="cap chunks per fivedirections host series (smoke runs); "
+                             "default = unlimited (~17 GB total)")
     args = parser.parse_args()
 
     TARGET_DIR.mkdir(parents=True, exist_ok=True)
     ENUM_CACHE_DIR.mkdir(parents=True, exist_ok=True)
-    print(f"target directory: {TARGET_DIR}")
+    print(f"target directory: {TARGET_DIR}", flush=True)
 
     try:
         import gdown
@@ -112,7 +142,7 @@ def main() -> int:
         print("ERROR: gdown not installed. Run: pip install -e \".[dev]\"", file=sys.stderr)
         return 1
 
-    print(f"enumerating {DRIVE_FOLDER_URL} ...")
+    print(f"enumerating {DRIVE_FOLDER_URL} ...", flush=True)
     try:
         all_items = gdown.download_folder(
             url=DRIVE_FOLDER_URL,
@@ -126,9 +156,11 @@ def main() -> int:
         print(MANUAL_FALLBACK_NOTE, file=sys.stderr)
         return 1
 
-    keep = filter_fivedirections(all_items)
-    print(f"  total items in Drive folder : {len(all_items)}")
-    print(f"  keeping (fivedirections+gt+top): {len(keep)}")
+    keep = filter_fivedirections(all_items, max_chunks_per_host=args.max_chunks_per_host)
+    print(f"  total items in Drive folder : {len(all_items)}", flush=True)
+    print(f"  keeping (fivedirections+gt+top): {len(keep)}", flush=True)
+    if args.max_chunks_per_host is not None:
+        print(f"  (--max-chunks-per-host {args.max_chunks_per_host} applied)", flush=True)
 
     if args.dry_run:
         print()
@@ -153,7 +185,7 @@ def main() -> int:
             continue
 
         url = f"https://drive.google.com/uc?id={it.id}"
-        print(f"[{i:>4}/{len(keep)}] downloading {rel_path.as_posix()}")
+        print(f"[{i:>4}/{len(keep)}] downloading {rel_path.as_posix()}", flush=True)
         try:
             gdown.download(
                 url=url,
