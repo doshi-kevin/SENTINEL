@@ -1,8 +1,8 @@
 # Sub-project A — Acquire DARPA TC E5 + Reproduce Phase 4
 
-**Date:** 2026-04-14
-**Status:** Draft — pending user approval
-**Branch:** `restructure` (will continue here unless user wants a sub-branch)
+**Date:** 2026-04-14 (amended 2026-04-15)
+**Status:** Approved + executing — see Amendment §11 for in-flight scope changes
+**Branch:** `restructure`
 **Author:** Claude (Sentinel-Z restart session)
 
 ---
@@ -198,3 +198,58 @@ Execute order:
 9. Push to `origin/restructure`
 
 When done, sub-project A's verification gate (§6) is the success criterion. After that, brainstorm sub-project B (Narrative Engine).
+
+---
+
+## 11. Amendment 2026-04-15 — discoveries during execution
+
+### 11.1 Drive folder structure (Surprise 1)
+The Engagement5 Drive folder hosts **all four TA1 performers** (cadets, fivedirections, theia, trace), not just FiveDirections. `gdown.download_folder()` has no per-subfolder filter and was downloading ~1–4 GB total.
+
+**Resolution:** user picked option **B** (FiveDirections-only). `download_e5.py` rewritten:
+- Enumerates the parent folder via `gdown.download_folder(skip_download=True)`
+- Filters items to: `Data/fivedirections/*`, `Ground_Truth/*`, top-level READMEs
+- Downloads each survivor individually via `gdown.download(id=..., output=...)`
+- Idempotent: skips files already present + non-empty
+- 343 files total kept (338 fivedirections chunks + 2 ground-truth + 3 top-level), ~338 MB
+
+### 11.2 E5 ground-truth attack periods are incomplete (Surprise 2)
+`auto_pipeline.DARPA_ATTACK_PERIODS['e5']['fivedirections']` only contains a single 2-minute window:
+
+```python
+[("2019-05-07 11:10:00", "2019-05-07 11:12:00")]
+```
+
+The published Phase 4 results were measured against **85 attack windows**. With the current incomplete table, ingest will produce a `labels.csv` where ~all rows are `label=0`, so the original ROC-AUC reproduction gate (0.84 ≤ AUC ≤ 0.88) cannot pass — not because of a bug, but because the labels are wrong.
+
+**Resolution:** option **III** — relax `verify_phase4.py` to gate only on "pipeline ran end-to-end without exceptions and produced output JSON." The ROC-AUC reproduction gate becomes a **separate follow-up task**:
+
+> **Follow-up task A.f1 — Extract full E5 ground truth.** Read
+> `data/raw/e5/Ground_Truth/TA51_Final_report_E5.pdf`, extract the
+> attacker-action timestamps (TA5.1 logs every adversarial action with
+> ISO timestamps), patch `DARPA_ATTACK_PERIODS['e5']['fivedirections']`
+> with the full list, re-ingest, re-run verify with the original
+> 0.84–0.88 AUC assertion restored.
+>
+> Estimated: 1–2 h (PDF parse + manual cross-check against the
+> Engagement-5-Event-Log.md).
+
+### 11.3 Spec location
+Moved from default `docs/superpowers/specs/` to `.specs/` (hidden working-artifact
+directory) to respect the user's "single-source README" mandate from the prior
+restructure cycle. Specs are working docs that get superseded by code; they
+shouldn't pollute the project's narrative documentation.
+
+### 11.4 Updated verification gate
+Replaces §6 for this run. The original §6 becomes the gate for the follow-up
+task A.f1 once E5 ground truth is patched.
+
+1. ✅ `pip install -e ".[ml,viz,dev]"`
+2. ✅ `make download`  → `data/raw/e5/Data/fivedirections/` populated, `Ground_Truth/` populated
+3. ✅ `make ingest`    → `data/auto_processed/graphs/` has ≥ 5,000 JSONs, `labels.csv` exists
+4. ✅ `make verify`    → exits 0; pipeline ran without exceptions; `data/auto_processed/detection/` has at least one JSON output
+5. ✅ `pytest tests/`  → all 4 smoke tests pass (incl. new `test_scripts_parse`)
+6. ✅ `git status`     → clean (data/ stays gitignored)
+
+ROC-AUC value reported by `verify_phase4.py` is **informational only** for this run.
+

@@ -45,6 +45,21 @@ def test_all_python_files_parse():
     assert not failures, "syntax errors:\n" + "\n".join(f"  {p}: {e}" for p, e in failures)
 
 
+def test_scripts_parse():
+    """Every .py under scripts/ must AST-parse — keeps bootstrap scripts honest."""
+    failures: list[tuple[pathlib.Path, str]] = []
+    py_files = list((REPO_ROOT / "scripts").rglob("*.py"))
+    assert py_files, "no python files found under scripts/"
+    for p in py_files:
+        try:
+            ast.parse(p.read_text(encoding="utf-8"))
+        except SyntaxError as exc:
+            failures.append((p, str(exc)))
+    assert not failures, "scripts/ syntax errors:\n" + "\n".join(
+        f"  {p}: {e}" for p, e in failures
+    )
+
+
 def test_realtime_event_buffer_imports():
     """event_buffer.py is pure-stdlib — must import without any optional deps."""
     import sys

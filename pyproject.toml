@@ -50,11 +50,12 @@ viz = [
 docs = [
     "python-docx>=1.1",
 ]
-# Development
+# Development (includes one-time bootstrap tool: gdown for DARPA TC E5 download)
 dev = [
     "pytest>=7.4",
     "pytest-cov>=4.1",
     "ruff>=0.3",
+    "gdown>=5.0",
 ]
 # Convenience meta-extra: install everything
 all = [

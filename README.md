@@ -538,11 +538,32 @@ sentinel-z/
 # minimal core (loads results, scores windows, serves API)
 pip install -e .
 
-# full install (adds torch + torch-geometric + matplotlib + seaborn + python-docx + dev tools)
+# full install (adds torch + torch-geometric + matplotlib + seaborn + python-docx + dev tools incl. gdown for dataset download)
 pip install -e ".[ml,viz,docs,dev]"
 ```
 
-### 9.2 Run the detection pipeline
+### 9.1a First-time setup — get the dataset and reproduce Phase 4
+The DARPA TC dataset is **not** in this repo; it's hosted by Five Directions Inc. on Google Drive (sign-in required). The `make reproduce` target chains download → ingest → verify:
+
+```bash
+make reproduce
+```
+
+That runs (in order):
+- `python scripts/download_e5.py` — pulls 343 files (~338 MB) from the Drive folder filtered to FiveDirections + Ground_Truth + READMEs into `data/raw/e5/`.
+- `python scripts/ingest_e5.py` — parses Avro chunks via `AutoPipeline` into `data/auto_processed/{graphs/, labels.csv}`.
+- `python scripts/verify_phase4.py` — runs `run_phase4_pipeline()` end-to-end and smoke-checks the outputs.
+
+> **Known incomplete:** the `DARPA_ATTACK_PERIODS['e5']['fivedirections']` table in `auto_pipeline.py` only contains a single 2-minute window. Until the full E5 ground truth is extracted from `data/raw/e5/Ground_Truth/TA51_Final_report_E5.pdf` and patched in, `verify_phase4.py` will pass (pipeline runs end-to-end) but the resulting ROC-AUC won't match the published 0.86. Tracked as a follow-up to sub-project A.
+
+#### Manual fallback (if `gdown` can't access the Drive folder)
+1. Open https://drive.google.com/drive/folders/1okt4AYElyBohW4XiOBqmsvjwXsnUjLVf in your browser, sign in.
+2. Open `Data/fivedirections/`, right-click → Download. Drive will zip it.
+3. Unzip into `data/raw/e5/Data/fivedirections/`.
+4. Repeat for the `Ground_Truth/` folder → `data/raw/e5/Ground_Truth/`.
+5. Run `make ingest` then `make verify`.
+
+### 9.2 Run the detection pipeline (after first-time setup)
 ```bash
 python -c "from src.sentinel_z.detection.semantic_risk_engine import run_phase4_pipeline; run_phase4_pipeline()"
 ```
