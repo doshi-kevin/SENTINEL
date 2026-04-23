@@ -593,3 +593,134 @@ async def run_training():
         print("Training complete!")
     except Exception as e:
         print(f"Training error: {e}")
+
+
+# ============================================================================
+# Narrative Endpoints (Phase 5)
+# ============================================================================
+
+class AttackNarrativeResponse(BaseModel):
+    """Response model for a single window narrative."""
+    window_id: int
+    stage: str
+    summary: str
+    risk_factors: List[str]
+    high_risk_entities: List[str]
+    mitre_hints: List[str]
+    raw_score: float
+    confidence: str
+
+
+class CampaignStoryResponse(BaseModel):
+    """Response model for a full campaign narrative."""
+    progression_id: str
+    start_time: str
+    end_time: str
+    duration_seconds: float
+    title: str
+    narrative: str
+    chapters: List[AttackNarrativeResponse]
+    mitre_tactics: List[str]
+
+
+@router.get("/story/window/{window_id}", response_model=AttackNarrativeResponse)
+async def get_window_narrative(window_id: int):
+    """
+    Get attack narrative for a single window.
+    Loads phase4_results.json, looks up the window, builds narrative.
+    """
+    try:
+        from ..narrative.story_builder import StoryBuilder
+
+        phase4_path = Path("data/model_ready/phase4_results.json")
+        if not phase4_path.exists():
+            raise HTTPException(
+                status_code=404,
+                detail="phase4_results.json not found"
+            )
+
+        # Load phase4 results
+        with open(phase4_path, 'r') as f:
+            phase4_results = json.load(f)
+
+        # Find window risk for this window_id
+        window_risk = None
+        for wr in phase4_results.get('window_risks', []):
+            if wr.get('window_id') == window_id:
+                window_risk = wr
+                break
+
+        if not window_risk:
+            raise HTTPException(
+                status_code=404,
+                detail=f"window_id {window_id} not found in results"
+            )
+
+        # Infer attack stage from risk factors (default: reconnaissance)
+        attack_stage = 'reconnaissance'
+        risk_factors = window_risk.get('risk_factors', [])
+        if any('execute' in rf.lower() for rf in risk_factors):
+            attack_stage = 'execution'
+        elif any('persist' in rf.lower() for rf in risk_factors):
+            attack_stage = 'persistence'
+        elif any('collect' in rf.lower() or 'exfil' in rf.lower() for rf in risk_factors):
+            attack_stage = 'exfiltration'
+        elif any('lateral' in rf.lower() or 'move' in rf.lower() for rf in risk_factors):
+            attack_stage = 'lateral_movement'
+
+        # Build narrative
+        builder = StoryBuilder()
+        narrative = builder.build_window_narrative(window_risk, attack_stage)
+
+        return narrative.to_dict()
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error generating narrative: {str(e)}"
+        )
+
+
+@router.get("/story/campaign", response_model=List[CampaignStoryResponse])
+async def get_campaign_stories():
+    """
+    Get attack narratives for all detected campaigns.
+    Loads timeline and phase4_results, builds full campaign stories.
+    """
+    try:
+        from ..narrative.story_builder import StoryBuilder
+
+        # Load timeline
+        timeline_path = Path("data/model_ready/timeline.json")
+        if not timeline_path.exists():
+            raise HTTPException(
+                status_code=404,
+                detail="timeline.json not found"
+            )
+
+        with open(timeline_path, 'r') as f:
+            timeline_data = json.load(f)
+
+        # Load phase4 results
+        phase4_path = Path("data/model_ready/phase4_results.json")
+        if not phase4_path.exists():
+            raise HTTPException(
+                status_code=404,
+                detail="phase4_results.json not found"
+            )
+
+        # Build stories
+        builder = StoryBuilder()
+        campaigns = builder.build_full_report(str(phase4_path), timeline_data)
+
+        return [c.to_dict() for c in campaigns]
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error generating campaign stories: {str(e)}"
+        )
