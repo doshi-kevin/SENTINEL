@@ -4,6 +4,14 @@ import pandas as pd
 import networkx as nx
 from datetime import datetime
 
+# Optional GPU acceleration with cugraph
+try:
+    import cugraph
+    import cudf
+    HAS_CUGRAPH = True
+except ImportError:
+    HAS_CUGRAPH = False
+
 class FeatureEngineer:
     """
     Adds structural, statistical, and temporal features to graph nodes.
@@ -35,8 +43,29 @@ class FeatureEngineer:
             indeg = dict(G.in_degree())
             outdeg = dict(G.out_degree())
             close = nx.closeness_centrality(G)
-            between = nx.betweenness_centrality(G, normalized=True)
-            pagerank = nx.pagerank(G, alpha=0.85)
+
+            # GPU-accelerated betweenness centrality (if cugraph available)
+            if HAS_CUGRAPH:
+                try:
+                    gdf = cugraph.utilities.from_networkx(G)
+                    bc_df = cugraph.betweenness_centrality(gdf)
+                    between = bc_df.set_index('vertex')['betweenness_centrality'].to_dict()
+                except Exception:
+                    between = nx.betweenness_centrality(G, normalized=True)
+            else:
+                between = nx.betweenness_centrality(G, normalized=True)
+
+            # GPU-accelerated PageRank (if cugraph available)
+            if HAS_CUGRAPH:
+                try:
+                    gdf = cugraph.utilities.from_networkx(G)
+                    pr_df = cugraph.pagerank(gdf)
+                    pagerank = pr_df.set_index('vertex')['pagerank'].to_dict()
+                except Exception:
+                    pagerank = nx.pagerank(G, alpha=0.85)
+            else:
+                pagerank = nx.pagerank(G, alpha=0.85)
+
             cluster = nx.clustering(G.to_undirected())
         except:
             close = {n: 0 for n in G.nodes()}
