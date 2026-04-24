@@ -441,8 +441,17 @@ class RefinedDetector:
             fused_score=fused_score,
             risk_factors=list(set(risk_factors)),
             high_risk_entities=high_risk_entities,
-            behavioral_profile=behavioral_profile,
-            is_anomaly=False  # Will be set after threshold optimization
+            behavioral_profile={
+                **behavioral_profile,
+                '_num_nodes': float(len(nodes)),
+                '_num_edges': float(len(links)),
+                '_num_subjects': float(num_subjects),
+                '_unknown_ratio': float(unknown_ratio),
+                '_network_ratio': float(network_ratio),
+                '_density': float(density),
+                '_event_types': event_types,
+            },
+            is_anomaly=False
         )
 
     def run(self, n_workers: int = 4) -> Dict:

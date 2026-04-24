@@ -1,35 +1,37 @@
 """
-Story Builder: Narrative Generation for Attack Campaigns
+Story Builder: Signal-driven Narrative Generation for Attack Campaigns
 
-Transforms Phase 4 semantic risk results into human-readable attack narratives.
-Uses template-based generation (NO LLMs) to describe:
-1. Attack stages (reconnaissance, execution, persistence, etc.)
-2. Risk factor summaries
-3. Affected entities and infrastructure
-4. Campaign progression across time
+Transforms Phase 4 WindowRisk results into human-readable attack narratives.
+Uses deterministic templates (NO LLMs) driven by ACTUAL detection signals:
 
-Key insight: Attack narratives help security teams understand the "why" and "how"
-of a detection, not just the "what score."
+    - unknown_subject_ratio: novel processes not in system catalog (strongest signal, ×15)
+    - behavioral_profile: event-type distribution (EXEC, READ, WRITE, NETWORK)
+    - graph_density, num_nodes: structural anomaly indicators
+    - network_ratio: external-connection activity
+    - risk_factors: LOLBin/suspicious-pattern flags (when they fire)
+    - high_risk_entities: UUIDs of anomalous subjects
+
+Narratives describe WHAT drove the detection, not a generic template.
 """
 
 import json
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass, field, asdict
-from datetime import datetime, timedelta
 
 
 @dataclass
 class AttackNarrative:
-    """Narrative for a single attack window."""
+    """Signal-driven narrative for one 1-second window."""
     window_id: int
-    stage: str  # e.g., "reconnaissance", "execution", "persistence"
-    summary: str  # One-sentence description
-    risk_factors: List[str]  # ["LOLBin usage", "Hidden execution", ...]
-    high_risk_entities: List[str]  # Process names, file paths, etc.
-    mitre_hints: List[str]  # MITRE tactic IDs
-    raw_score: float  # 0-10 semantic risk score
-    confidence: str  # "low", "medium", "high"
+    stage: str
+    summary: str
+    risk_factors: List[str]
+    high_risk_entities: List[str]
+    mitre_hints: List[str]
+    raw_score: float
+    confidence: str
+    signals: Dict[str, float] = field(default_factory=dict)
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -37,15 +39,15 @@ class AttackNarrative:
 
 @dataclass
 class CampaignStory:
-    """Narrative for a full attack campaign."""
+    """Narrative for a multi-window attack campaign."""
     progression_id: str
     start_time: str
     end_time: str
     duration_seconds: float
     title: str
-    narrative: str  # Multi-sentence summary of campaign
-    chapters: List[AttackNarrative]  # One narrative per window
-    mitre_tactics: List[str]  # Aggregated MITRE tactic IDs
+    narrative: str
+    chapters: List[AttackNarrative]
+    mitre_tactics: List[str]
 
     def to_dict(self) -> dict:
         return {
@@ -56,292 +58,297 @@ class CampaignStory:
             'title': self.title,
             'narrative': self.narrative,
             'chapters': [ch.to_dict() for ch in self.chapters],
-            'mitre_tactics': self.mitre_tactics
+            'mitre_tactics': self.mitre_tactics,
         }
 
 
 class StoryBuilder:
-    """
-    Builds attack narratives from Phase 4 results.
+    """Builds attack narratives from real Phase 4 signals."""
 
-    Uses template-based generation:
-    - Each stage has predefined sentence templates
-    - Risk factors and entities are inserted into templates
-    - No external LLM calls (reproducible, offline)
-    """
-
-    # Stage-to-MITRE tactic mapping
     STAGE_TO_MITRE = {
-        'reconnaissance': 'TA0043',
-        'execution': 'TA0002',
-        'persistence': 'TA0003',
-        'collection': 'TA0009',
-        'exfiltration': 'TA0010',
-        'lateral_movement': 'TA0008',
+        'reconnaissance':    'TA0043',
+        'execution':         'TA0002',
+        'persistence':       'TA0003',
+        'privilege_escalation': 'TA0004',
+        'defense_evasion':   'TA0005',
+        'credential_access': 'TA0006',
+        'discovery':         'TA0007',
+        'lateral_movement':  'TA0008',
+        'collection':        'TA0009',
+        'exfiltration':      'TA0010',
+        'command_and_control': 'TA0011',
+        'impact':            'TA0040',
     }
 
-    # Templates for one-sentence summaries per stage
-    STAGE_TEMPLATES = {
-        'reconnaissance': (
-            "Attacker gathered information about target systems and infrastructure.",
-            "Attacker probed for vulnerabilities and enumerated network topology."
-        ),
-        'execution': (
-            "Attacker executed malicious code on target system.",
-            "Attacker launched payload for command execution and exploitation."
-        ),
-        'persistence': (
-            "Attacker established mechanisms to maintain long-term access.",
-            "Attacker installed backdoors and scheduled tasks for persistence."
-        ),
-        'collection': (
-            "Attacker gathered sensitive data from target systems.",
-            "Attacker exfiltrated files and credentials for further exploitation."
-        ),
-        'exfiltration': (
-            "Attacker transferred stolen data outside the network.",
-            "Attacker used C2 channels to exfiltrate sensitive information."
-        ),
-        'lateral_movement': (
-            "Attacker moved horizontally to compromise additional systems.",
-            "Attacker pivoted through the network to expand attack surface."
-        ),
-        'benign': (
-            "Normal system activity detected.",
-            "No suspicious activity detected in this window."
-        ),
-    }
+    NETWORK_EVENTS = {'SENDMSG', 'SENDTO', 'RECVMSG', 'RECVFROM', 'CONNECT', 'ACCEPT'}
+    EXEC_EVENTS    = {'EXECUTE', 'FORK', 'CLONE', 'EXIT', 'MODIFY_PROCESS'}
+    READ_EVENTS    = {'READ', 'OPEN', 'MMAP', 'LOADLIBRARY'}
+    WRITE_EVENTS   = {'WRITE', 'CREATE', 'MODIFY_FILE', 'RENAME', 'UNLINK'}
 
-    # Confidence levels based on risk score
-    SCORE_TO_CONFIDENCE = {
-        (0.0, 3.0): 'low',
-        (3.0, 6.5): 'medium',
-        (6.5, 10.0): 'high',
-    }
+    def _classify_stage(self, window_risk: dict) -> str:
+        """Infer attack stage from actual event-type distribution.
 
-    def __init__(self):
-        """Initialize story builder."""
-        pass
+        Priority order follows kill-chain logic: network activity -> exfiltration;
+        exec-heavy -> execution; read-heavy without writes -> discovery; etc.
+        """
+        profile = window_risk.get('behavioral_profile', {}) or {}
+        event_types = profile.get('_event_types', {}) or {}
 
-    def _get_confidence(self, score: float) -> str:
-        """Map risk score to confidence level."""
-        for (low, high), confidence in self.SCORE_TO_CONFIDENCE.items():
-            if low <= score < high:
-                return confidence
+        if not event_types:
+            return 'reconnaissance'
+
+        total = sum(event_types.values()) or 1
+        buckets = {'exec': 0, 'read': 0, 'write': 0, 'network': 0}
+        for evt, count in event_types.items():
+            evt_short = evt.replace('EVENT_', '').upper()
+            if evt_short in self.NETWORK_EVENTS:
+                buckets['network'] += count
+            elif evt_short in self.EXEC_EVENTS:
+                buckets['exec'] += count
+            elif evt_short in self.READ_EVENTS:
+                buckets['read'] += count
+            elif evt_short in self.WRITE_EVENTS:
+                buckets['write'] += count
+
+        ratios = {k: v / total for k, v in buckets.items()}
+        network_ratio = profile.get('_network_ratio', ratios['network'])
+        unknown_ratio = profile.get('_unknown_ratio', 0.0)
+
+        if network_ratio > 0.3:
+            return 'exfiltration' if ratios['read'] > 0.15 else 'command_and_control'
+        if ratios['exec'] > 0.25 and unknown_ratio > 0.5:
+            return 'execution'
+        if ratios['write'] > 0.3:
+            return 'persistence'
+        if ratios['read'] > 0.4 and ratios['write'] < 0.1:
+            return 'discovery'
+        if unknown_ratio > 0.7:
+            return 'lateral_movement'
+        return 'reconnaissance'
+
+    def _confidence(self, fused_score: float, threshold: float = 40.0) -> str:
+        """Confidence from fused_score (typical attack range: 25-80)."""
+        if fused_score < threshold * 0.7:
+            return 'low'
+        if fused_score < threshold * 1.2:
+            return 'medium'
         return 'high'
 
-    def _pick_template(self, stage: str, risk_factor_count: int) -> str:
+    def _format_entities(self, entities: List[str], limit: int = 3) -> str:
+        """Short-form entity IDs (they're UUIDs; we only show first 8 chars)."""
+        if not entities:
+            return "no specific entity"
+        shown = [e[:8] if len(e) > 8 else e for e in entities[:limit]]
+        if len(entities) > limit:
+            return f"{', '.join(shown)} +{len(entities) - limit} more"
+        return ', '.join(shown)
+
+    def _build_summary(self, wr: dict, stage: str) -> Tuple[str, Dict[str, float]]:
+        """Construct a one-sentence summary from actual signals.
+
+        Returns (summary_text, signals_dict).
         """
-        Pick a template based on stage and complexity.
-        More risk factors → use more descriptive template.
-        """
-        templates = self.STAGE_TEMPLATES.get(stage, self.STAGE_TEMPLATES['benign'])
-        if risk_factor_count >= 3:
-            idx = 1 if len(templates) > 1 else 0
-        else:
-            idx = 0
-        return templates[idx]
+        profile = wr.get('behavioral_profile', {}) or {}
+        unknown_ratio = profile.get('_unknown_ratio', 0.0)
+        network_ratio = profile.get('_network_ratio', 0.0)
+        density       = profile.get('_density', 0.0)
+        num_nodes     = int(profile.get('_num_nodes', 0))
+        num_subjects  = int(profile.get('_num_subjects', 0))
+        fused         = wr.get('fused_score', 0.0)
+        structural    = wr.get('structural_score', 0.0)
+        entities      = wr.get('high_risk_entities', []) or []
+        risk_factors  = wr.get('risk_factors', []) or []
+
+        signals = {
+            'unknown_ratio': round(unknown_ratio, 3),
+            'network_ratio': round(network_ratio, 3),
+            'density':       round(density, 3),
+            'num_nodes':     num_nodes,
+            'num_subjects':  num_subjects,
+            'fused_score':   round(fused, 2),
+            'structural':    round(structural, 2),
+        }
+
+        unknown_pct = int(unknown_ratio * 100)
+        net_pct     = int(network_ratio * 100)
+        entity_str  = self._format_entities(entities)
+        lolbin_hits = [f.split(':', 1)[1] for f in risk_factors if f.startswith('lolbin:')]
+
+        if stage == 'execution':
+            if lolbin_hits:
+                summary = (f"Suspicious process execution: {', '.join(lolbin_hits[:2])} invoked "
+                           f"in a {num_nodes}-node graph ({unknown_pct}% unknown subjects). "
+                           f"High-risk entity: {entity_str}.")
+            else:
+                summary = (f"Novel process execution: {unknown_pct}% of subjects are unknown to "
+                           f"the system catalog. Graph density {density:.2f} with {num_nodes} nodes. "
+                           f"Affected: {entity_str}.")
+        elif stage == 'exfiltration':
+            summary = (f"Data exfiltration signals: {net_pct}% of events are network-bound, "
+                       f"involving {entity_str}. Unknown-subject ratio {unknown_pct}%.")
+        elif stage == 'command_and_control':
+            summary = (f"Potential C2 activity: {net_pct}% network events concentrated around "
+                       f"{entity_str}. Graph density {density:.2f}.")
+        elif stage == 'persistence':
+            summary = (f"Persistence-like write activity detected on {num_nodes}-node graph. "
+                       f"{unknown_pct}% of subjects are unknown; affected: {entity_str}.")
+        elif stage == 'discovery':
+            summary = (f"Reconnaissance pattern: heavy read activity across {num_nodes} nodes "
+                       f"with minimal writes. {unknown_pct}% unknown subjects.")
+        elif stage == 'lateral_movement':
+            summary = (f"Lateral-movement indicator: {unknown_pct}% novel subjects interacting in "
+                       f"a dense graph (density {density:.2f}). Affected: {entity_str}.")
+        else:  # reconnaissance / fallback
+            summary = (f"Anomalous activity: fused score {fused:.1f}, {unknown_pct}% unknown "
+                       f"subjects across {num_nodes} nodes. Entities: {entity_str}.")
+
+        if lolbin_hits and stage != 'execution':
+            summary += f" LOLBin hit: {', '.join(lolbin_hits[:2])}."
+
+        return summary, signals
 
     def build_window_narrative(
         self,
         window_risk: dict,
-        attack_stage: str
+        attack_stage: Optional[str] = None,
+        threshold: float = 40.0,
     ) -> AttackNarrative:
+        """Build a narrative for one window using actual Phase 4 signals.
+
+        If attack_stage is None, we classify from behavioral_profile._event_types.
         """
-        Build a narrative for a single attack window.
+        stage = attack_stage or self._classify_stage(window_risk)
+        summary, signals = self._build_summary(window_risk, stage)
 
-        Args:
-            window_risk: Dict from Phase 4 WindowRisk with keys:
-                - window_id: int
-                - semantic_score: float (0-10)
-                - risk_factors: List[str]
-                - high_risk_entities: List[str]
-            attack_stage: str, one of the STAGE_TO_MITRE keys
+        mitre = self.STAGE_TO_MITRE.get(stage)
+        mitre_hints = [mitre] if mitre else []
 
-        Returns:
-            AttackNarrative for this window.
-        """
-        window_id = window_risk.get('window_id', 0)
-        score = window_risk.get('semantic_score', 0.0)
-        risk_factors = window_risk.get('risk_factors', [])
-        entities = window_risk.get('high_risk_entities', [])
-
-        # Pick template and generate summary
-        template = self._pick_template(attack_stage, len(risk_factors))
-        summary = template
-
-        # Map stage to MITRE tactic
-        mitre_tactic = self.STAGE_TO_MITRE.get(attack_stage, 'TA0000')
-        mitre_hints = [mitre_tactic] if mitre_tactic != 'TA0000' else []
-
-        # Determine confidence from score
-        confidence = self._get_confidence(score)
+        fused = window_risk.get('fused_score', 0.0)
+        confidence = self._confidence(fused, threshold)
 
         return AttackNarrative(
-            window_id=window_id,
-            stage=attack_stage,
+            window_id=window_risk.get('window_id', 0),
+            stage=stage,
             summary=summary,
-            risk_factors=risk_factors[:5],  # Top 5 risk factors
-            high_risk_entities=entities[:5],  # Top 5 entities
+            risk_factors=(window_risk.get('risk_factors') or [])[:5],
+            high_risk_entities=(window_risk.get('high_risk_entities') or [])[:5],
             mitre_hints=mitre_hints,
-            raw_score=score,
-            confidence=confidence
+            raw_score=fused,
+            confidence=confidence,
+            signals=signals,
         )
 
     def build_campaign_story(
         self,
         progression: dict,
         window_risks: List[dict],
-        window_stages: List[str]
+        window_stages: Optional[List[str]] = None,
+        threshold: float = 40.0,
     ) -> CampaignStory:
-        """
-        Build a narrative for a full attack campaign.
-
-        Args:
-            progression: Dict from timeline_builder.AttackProgression with keys:
-                - start_window: int
-                - end_window: int
-                - duration_seconds: float
-            window_risks: List of window_risk dicts (from Phase 4)
-            window_stages: List of attack stage strings (aligned with window_risks)
-
-        Returns:
-            CampaignStory for this campaign.
-        """
+        """Build a multi-window campaign story."""
         start_wid = progression.get('start_window', 0)
-        end_wid = progression.get('end_window', 0)
-        duration = progression.get('duration_seconds', 0.0)
+        end_wid   = progression.get('end_window', 0)
+        duration  = progression.get('duration_seconds', 0.0)
 
-        # Generate ID
-        progression_id = f"campaign_{start_wid:06d}_{end_wid:06d}"
+        chapters: List[AttackNarrative] = []
+        for i, wr in enumerate(window_risks):
+            stage = None
+            if window_stages and i < len(window_stages):
+                stage = window_stages[i]
+            chapters.append(self.build_window_narrative(wr, stage, threshold))
 
-        # Build chapters (one narrative per window)
-        chapters = []
-        all_mitre_tactics = set()
+        mitre_tactics = sorted({t for ch in chapters for t in ch.mitre_hints})
+        stages_seen   = [ch.stage for ch in chapters]
+        unique_stages = list(dict.fromkeys(stages_seen))
 
-        for i, window_risk in enumerate(window_risks):
-            stage = window_stages[i] if i < len(window_stages) else 'reconnaissance'
-            narrative = self.build_window_narrative(window_risk, stage)
-            chapters.append(narrative)
-
-            # Aggregate MITRE tactics
-            for tactic in narrative.mitre_hints:
-                all_mitre_tactics.add(tactic)
-
-        # Generate overall campaign narrative
         if chapters:
-            avg_score = sum(ch.raw_score for ch in chapters) / len(chapters)
-            high_confidence_count = sum(1 for ch in chapters if ch.confidence == 'high')
-
-            if high_confidence_count >= len(chapters) * 0.5:
-                campaign_narrative = (
-                    f"Multi-stage attack campaign detected spanning {len(chapters)} windows. "
-                    f"Progression suggests: "
-                )
-            else:
-                campaign_narrative = (
-                    f"Potential attack activity detected across {len(chapters)} windows. "
-                    f"Activity pattern indicates: "
-                )
-
-            # Summarize stage progression
-            stages_used = set(ch.stage for ch in chapters)
-            if 'reconnaissance' in stages_used:
-                campaign_narrative += "initial reconnaissance; "
-            if 'execution' in stages_used:
-                campaign_narrative += "command execution; "
-            if 'lateral_movement' in stages_used:
-                campaign_narrative += "lateral movement; "
-            if 'persistence' in stages_used:
-                campaign_narrative += "persistence mechanisms; "
-            if 'collection' in stages_used:
-                campaign_narrative += "data collection; "
-            if 'exfiltration' in stages_used:
-                campaign_narrative += "data exfiltration. "
-
-            campaign_narrative = campaign_narrative.rstrip('; ') + "."
+            peak_score = max(ch.raw_score for ch in chapters)
+            peak_ch    = max(chapters, key=lambda c: c.raw_score)
+            stage_chain = " -> ".join(unique_stages[:4])
+            narrative = (
+                f"Attack progression over {duration:.0f}s ({len(chapters)} windows): "
+                f"{stage_chain}. Peak anomaly at window {peak_ch.window_id} "
+                f"(fused={peak_score:.1f}). {peak_ch.summary}"
+            )
+            title = f"APT progression: {stage_chain[:50]} (windows {start_wid}-{end_wid})"
         else:
-            campaign_narrative = "No attack activity detected."
-
-        # Time strings (placeholders if not in progression)
-        start_time = progression.get('start_time', 'unknown')
-        end_time = progression.get('end_time', 'unknown')
-
-        # Title based on severity
-        if avg_score >= 7.0 if chapters else False:
-            title = f"High-Severity Attack Campaign (Windows {start_wid}-{end_wid})"
-        elif avg_score >= 5.0 if chapters else False:
-            title = f"Suspicious Activity Campaign (Windows {start_wid}-{end_wid})"
-        else:
-            title = f"Anomalous Activity Campaign (Windows {start_wid}-{end_wid})"
+            narrative = "No windows in progression."
+            title = f"Empty progression (windows {start_wid}-{end_wid})"
 
         return CampaignStory(
-            progression_id=progression_id,
-            start_time=start_time,
-            end_time=end_time,
+            progression_id=f"campaign_{start_wid:06d}_{end_wid:06d}",
+            start_time=progression.get('start_time', 'unknown'),
+            end_time=progression.get('end_time', 'unknown'),
             duration_seconds=duration,
             title=title,
-            narrative=campaign_narrative,
+            narrative=narrative,
             chapters=chapters,
-            mitre_tactics=sorted(list(all_mitre_tactics))
+            mitre_tactics=mitre_tactics,
         )
 
     def build_full_report(
         self,
         phase4_results_path: str,
-        timeline_data: dict
+        timeline_data: Optional[dict] = None,
+        min_score: float = 40.0,
     ) -> List[CampaignStory]:
-        """
-        Build a full report of all detected campaigns.
+        """Build campaign stories from Phase 4 results.
 
-        Args:
-            phase4_results_path: Path to phase4_results.json from detection module
-            timeline_data: Dict from timeline_builder with keys:
-                - windows: List of TimelineWindow dicts
-                - attack_progressions: List of AttackProgression dicts
-
-        Returns:
-            List of CampaignStory objects, one per detected attack campaign.
+        If timeline_data with attack_progressions is provided, uses those groupings.
+        Otherwise, auto-groups consecutive anomalous windows into campaigns.
         """
-        # Load Phase 4 results
-        phase4_path = Path(phase4_results_path)
-        if not phase4_path.exists():
+        path = Path(phase4_results_path)
+        if not path.exists():
             return []
 
-        with open(phase4_path, 'r') as f:
-            phase4_results = json.load(f)
+        with open(path, 'r') as f:
+            results = json.load(f)
 
-        # Build a mapping: window_id -> window_risk
-        window_risks_by_id = {}
-        for wr in phase4_results.get('window_risks', []):
-            window_risks_by_id[wr['window_id']] = wr
+        windows = results.get('windows', [])
+        if not windows:
+            return []
 
-        # Extract attack progressions and build campaigns
+        threshold = float(results.get('metrics', {}).get('threshold', min_score))
+        by_id = {w['window_id']: w for w in windows if 'window_id' in w}
+
+        if timeline_data and timeline_data.get('attack_progressions'):
+            campaigns = []
+            for prog in timeline_data['attack_progressions']:
+                ids = [s['window_id'] for s in prog.get('stages', [])
+                       if s.get('window_id') in by_id]
+                wrs = [by_id[i] for i in ids]
+                stages = [s['stage'] for s in prog.get('stages', []) if s.get('window_id') in by_id]
+                if wrs:
+                    campaigns.append(self.build_campaign_story(prog, wrs, stages, threshold))
+            return campaigns
+
+        # Auto-group consecutive anomalous windows
+        sorted_ws = sorted((w for w in windows if w.get('fused_score', 0) >= threshold),
+                           key=lambda w: w['window_id'])
         campaigns = []
-        attack_progressions = timeline_data.get('attack_progressions', [])
-
-        for prog in attack_progressions:
-            start_wid = prog.get('start_window', 0)
-            end_wid = prog.get('end_window', 0)
-
-            # Gather window risks and stages for this progression
-            window_risks_in_prog = []
-            stages_in_prog = []
-
-            for wid in range(start_wid, end_wid + 1):
-                if wid in window_risks_by_id:
-                    window_risks_in_prog.append(window_risks_by_id[wid])
-                    # Infer stage from progression data if available
-                    stage_info = next(
-                        (s for s in prog.get('stages', []) if s.get('window_id') == wid),
-                        None
-                    )
-                    stage = stage_info.get('stage', 'reconnaissance') if stage_info else 'reconnaissance'
-                    stages_in_prog.append(stage)
-
-            # Build campaign story
-            if window_risks_in_prog:
-                story = self.build_campaign_story(prog, window_risks_in_prog, stages_in_prog)
-                campaigns.append(story)
-
+        current: List[dict] = []
+        for w in sorted_ws:
+            if not current:
+                current = [w]
+                continue
+            if w['window_id'] - current[-1]['window_id'] <= 5:
+                current.append(w)
+            else:
+                campaigns.append(self._auto_campaign(current, threshold))
+                current = [w]
+        if current:
+            campaigns.append(self._auto_campaign(current, threshold))
         return campaigns
+
+    def _auto_campaign(self, window_risks: List[dict], threshold: float) -> CampaignStory:
+        """Build a campaign story from a contiguous run of anomalous windows."""
+        start_wid = window_risks[0]['window_id']
+        end_wid   = window_risks[-1]['window_id']
+        prog = {
+            'start_window': start_wid,
+            'end_window': end_wid,
+            'duration_seconds': float(end_wid - start_wid + 1),
+            'start_time': 'unknown',
+            'end_time': 'unknown',
+        }
+        return self.build_campaign_story(prog, window_risks, None, threshold)
