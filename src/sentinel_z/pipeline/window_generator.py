@@ -24,7 +24,7 @@ class WindowGenerator:
         generate windows only for unique time bins that have events.
         """
         events = events.copy()
-        events["second_bin"] = events["timestamp"].dt.floor("1S")
+        events["second_bin"] = events["timestamp"].dt.floor("1s")
 
         # Unique windows with actual events
         unique_bins = sorted(events["second_bin"].unique())

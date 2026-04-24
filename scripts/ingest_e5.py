@@ -100,7 +100,7 @@ def _build_window_worker(args):
         return None
 
     window_events = _pd.DataFrame(window_events_records)
-    window_events["timestamp"] = _pd.to_datetime(window_events["timestamp"])
+    window_events["timestamp"] = _pd.to_datetime(window_events["timestamp"], format="ISO8601")
     start = _pd.Timestamp(start_iso)
     end = _pd.Timestamp(end_iso)
 
@@ -244,77 +244,33 @@ def main() -> int:
         print("Run: pip install -e \".[ml]\" or install pandas/numpy/networkx/fastavro", file=sys.stderr)
         return 1
 
-    # ------- Phase 1: parallel parse -------
+    # ------- Phase 1: sequential parse -------
+    pipeline = AutoPipeline(output_dir=str(OUT_DIR))
     print(f"Parsing {len(raw_files)} chunk(s) from {RAW_DIR}", flush=True)
     print(f"  output: {OUT_DIR}", flush=True)
-
-    from concurrent.futures import ProcessPoolExecutor, as_completed
-
-    def _parse_file_worker(fp_str: str) -> dict:
-        """Worker function: parse a single file and return counts."""
-        pipeline_worker = AutoPipeline(output_dir=str(OUT_DIR))
-        try:
-            counts = pipeline_worker.ingest(fp_str)
-            return {
-                "fp": fp_str,
-                "counts": counts,
-                "events": pipeline_worker.all_events,
-                "subjects": counts.get("subjects", 0),
-                "error": None
-            }
-        except Exception as exc:
-            return {
-                "fp": fp_str,
-                "counts": {},
-                "events": [],
-                "subjects": 0,
-                "error": str(exc)
-            }
-
-    max_workers = min(len(raw_files), (os.cpu_count() or 4) - 2)
-    print(f"  using {max_workers} parallel workers", flush=True)
-
     total_events = 0
     total_subjects = 0
-    all_events_list = []
-
-    with ProcessPoolExecutor(max_workers=max_workers) as executor:
-        futures = {
-            executor.submit(_parse_file_worker, str(fp)): fp.name
-            for fp in raw_files
-        }
-
-        for i, future in enumerate(as_completed(futures), 1):
-            file_name = futures[future]
-            try:
-                result = future.result()
-                if result["error"]:
-                    print(f"  [{i}/{len(raw_files)}] {file_name} ERROR: {result['error']}", file=sys.stderr)
-                else:
-                    print(f"  [{i}/{len(raw_files)}] {file_name} OK", flush=True)
-                    total_events += result["counts"].get("events", 0)
-                    total_subjects += result["subjects"]
-                    all_events_list.extend(result["events"])
-            except Exception as exc:
-                print(f"  [{i}/{len(raw_files)}] {file_name} FAILED: {exc}", file=sys.stderr)
+    for i, fp in enumerate(raw_files, 1):
+        print(f"\n[{i}/{len(raw_files)}] {fp.name}", flush=True)
+        try:
+            counts = pipeline.ingest(str(fp))
+        except Exception as exc:
+            print(f"  ERROR parsing {fp.name}: {exc}", file=sys.stderr)
+            print("  (continuing with remaining files)", file=sys.stderr)
+            continue
+        total_events += counts.get("events", 0)
+        total_subjects += counts.get("subjects", 0)
 
     print(f"\nparse complete: {total_events:,} events, {total_subjects:,} subjects", flush=True)
 
-    if not all_events_list:
+    if not pipeline.all_events:
         print("ERROR: no events parsed from any file", file=sys.stderr)
         return 1
-
-    # Reassign to variable name expected by Phase 2
-    class _PipelineProxy:
-        def __init__(self, events):
-            self.all_events = events
-
-    pipeline = _PipelineProxy(all_events_list)
 
     # ------- Phase 2: parallel build -------
     import pandas as pd
     events_df = pd.concat(pipeline.all_events, ignore_index=True)
-    events_df["timestamp"] = pd.to_datetime(events_df["timestamp"])
+    events_df["timestamp"] = pd.to_datetime(events_df["timestamp"], format="ISO8601")
     events_df = events_df.dropna(subset=["timestamp"])
     print(f"combined events: {len(events_df):,} rows; sorting by timestamp ...", flush=True)
 
