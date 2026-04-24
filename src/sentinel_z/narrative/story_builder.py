@@ -134,6 +134,15 @@ class StoryBuilder:
             return 'medium'
         return 'high'
 
+    def _rf_confidence(self, rf_score: float, threshold: float) -> str:
+        """Confidence from RF probability score (0-1 range)."""
+        margin = rf_score - threshold
+        if margin < 0:
+            return 'low'
+        if margin < 0.15:
+            return 'medium'
+        return 'high'
+
     def _format_entities(self, entities: List[str], limit: int = 3) -> str:
         """Short-form entity IDs (they're UUIDs; we only show first 8 chars)."""
         if not entities:
@@ -212,19 +221,38 @@ class StoryBuilder:
         window_risk: dict,
         attack_stage: Optional[str] = None,
         threshold: float = 40.0,
+        rf_result: Optional[dict] = None,
     ) -> AttackNarrative:
-        """Build a narrative for one window using actual Phase 4 signals.
+        """Build a narrative for one window using Phase 4 signals + optional RF output.
+
+        If rf_result is provided (from RFDetector.predict), the narrative uses
+        RF anomaly_score and top_features as the primary trust signal, with
+        semantic data as supporting context. This is the production path.
 
         If attack_stage is None, we classify from behavioral_profile._event_types.
         """
         stage = attack_stage or self._classify_stage(window_risk)
         summary, signals = self._build_summary(window_risk, stage)
 
+        if rf_result is not None:
+            rf_score = float(rf_result.get('anomaly_score', 0.0))
+            rf_threshold = float(rf_result.get('threshold', 0.5))
+            top_feats = rf_result.get('top_features', {})
+            top_named = ', '.join(f"{k}={v:.2f}" for k, v in list(top_feats.items())[:3])
+            summary = (f"[RF score {rf_score:.3f} >= {rf_threshold:.3f}] {summary} "
+                       f"Primary signals: {top_named}.")
+            signals['rf_score'] = rf_score
+            signals['rf_threshold'] = rf_threshold
+            confidence = self._rf_confidence(rf_score, rf_threshold)
+            score_for_narrative = rf_score
+        else:
+            confidence = self._confidence(window_risk.get('fused_score', 0.0), threshold)
+            score_for_narrative = window_risk.get('fused_score', 0.0)
+
         mitre = self.STAGE_TO_MITRE.get(stage)
         mitre_hints = [mitre] if mitre else []
 
-        fused = window_risk.get('fused_score', 0.0)
-        confidence = self._confidence(fused, threshold)
+        fused = score_for_narrative
 
         return AttackNarrative(
             window_id=window_risk.get('window_id', 0),

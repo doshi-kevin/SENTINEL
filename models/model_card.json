@@ -1,0 +1,29 @@
+{
+  "roc_auc_test": 0.9646903925949568,
+  "precision_test": 0.23809523809523808,
+  "recall_test": 0.38461538461538464,
+  "f1_test": 0.2941176470588235,
+  "fpr_test": 0.008298755186721992,
+  "threshold": 0.5833761988139846,
+  "feature_importances": {
+    "num_nodes": 0.09420986701106783,
+    "num_edges": 0.09146821102073438,
+    "num_subjects": 0.15483364998183718,
+    "density": 0.05304514377005807,
+    "unknown_ratio": 0.45519344063250583,
+    "network_ratio": 0.05812022954844038,
+    "structural": 0.09312945803535633
+  },
+  "n_train": 9053,
+  "n_val": 1941,
+  "n_test": 1941,
+  "n_attacks_test": 13,
+  "trained_on": "DARPA TC E5 FiveDirections (smoke subset: files 1-2)",
+  "limitations": [
+    "Trained on a single campaign (E5 FiveDirections) - generalization to other teams (THEIA, TRACE, CADETS) or engagements (E3, E4) is UNVERIFIED.",
+    "All 86 attacks cluster in a 2-minute window; stratified (not temporal) split means this measures discrimination, not temporal robustness.",
+    "Small attack sample size (~86 windows) limits statistical power.",
+    "Features derived from 1-second graph windows; multi-step APTs spanning minutes/hours are not captured by this model alone."
+  ],
+  "model_version": "1.0.0"
+}
