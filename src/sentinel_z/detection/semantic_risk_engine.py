@@ -179,8 +179,23 @@ class SemanticRiskEngine:
             self._load_subjects(subjects_csv)
 
     def _load_subjects(self, csv_path: str):
-        """Load subject UUID to command-line mapping with parent chain resolution."""
-        df = pd.read_csv(csv_path)
+        """Load subject UUID to command-line mapping with parent chain resolution.
+
+        Accepts either a single CSV or a directory containing subjects_*.csv files
+        (auto-concatenates across all host/chunk partitions).
+        """
+        p = Path(csv_path)
+        if p.is_dir():
+            import glob
+            files = sorted(glob.glob(str(p / 'subjects_*.csv')))
+            if not files:
+                print(f"No subjects_*.csv found in {p}")
+                return
+            df = pd.concat([pd.read_csv(f) for f in files], ignore_index=True)
+            df = df.drop_duplicates(subset=['uuid'], keep='first')
+            print(f"Loaded subjects from {len(files)} partition(s)")
+        else:
+            df = pd.read_csv(csv_path)
         self.subjects_df = df
 
         # Direct mappings
@@ -619,7 +634,7 @@ def run_phase4_pipeline():
     detector = RefinedDetector(
         graphs_dir='data/model_ready/graphs',
         labels_csv='data/model_ready/labels.csv',
-        subjects_csv='data/auto_processed/fivedirections/e5/subjects_1.csv',
+        subjects_csv='data/auto_processed/fivedirections/e5',
         phase3_results='data/model_ready/detection/detection_results.json'
     )
 

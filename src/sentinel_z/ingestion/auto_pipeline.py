@@ -467,22 +467,23 @@ class AutoPipeline:
         return total_counts
 
     def _save_intermediate(self, data: Dict[str, pd.DataFrame], dataset: DARPADataset) -> None:
-        """Save intermediate parsed data (disabled by default to save disk space).
+        """Save intermediate parsed data.
 
-        Enable with save_intermediate=True if you need per-file CSVs for debugging.
-        Warning: saves ~1.8 GB per file × number of files.
+        Always saves small metadata CSVs (subjects, files, network) — needed for
+        semantic risk engine cmd_line lookups.
+        Only skips the massive events CSV (~1.8GB/file) unless save_intermediate=True.
         """
-        if not self.save_intermediate:
-            return
-
         subdir = self.output_dir / dataset.team / dataset.engagement
         subdir.mkdir(parents=True, exist_ok=True)
 
         for name, df in data.items():
-            if len(df) > 0:
-                path = subdir / f"{name}_{dataset.file_num}.csv"
-                df.to_csv(path, index=False)
-                print(f"  Saved: {path}")
+            if len(df) == 0:
+                continue
+            if name == 'events' and not self.save_intermediate:
+                continue
+            path = subdir / f"{name}_{dataset.file_num}.csv"
+            df.to_csv(path, index=False)
+            print(f"  Saved: {path}")
 
     def build_dataset(
         self,
