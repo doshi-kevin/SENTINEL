@@ -278,7 +278,9 @@ def main() -> int:
     from concurrent.futures import ProcessPoolExecutor as _PPE, as_completed as _as_completed
 
     pipeline = AutoPipeline(output_dir=str(OUT_DIR), save_intermediate=True)
-    parse_workers = min(len(raw_files), max(1, (os.cpu_count() or 4) - 1))
+    # Each parse worker holds ~1 GB of parsed events in RAM, so cap at 4 to
+    # stay under ~4 GB peak. The previous 15-worker run OOM-crashed silently.
+    parse_workers = min(len(raw_files), 4)
     print(f"Parsing {len(raw_files)} chunk(s) from {RAW_DIR}", flush=True)
     print(f"  output: {OUT_DIR}", flush=True)
     print(f"  using {parse_workers} parallel parse workers", flush=True)
