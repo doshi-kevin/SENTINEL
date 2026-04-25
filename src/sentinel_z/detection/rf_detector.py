@@ -141,7 +141,7 @@ class RFDetector:
             n_val=len(val_y),
             n_test=len(test_y),
             n_attacks_test=int(test_y.sum()),
-            trained_on="DARPA TC E5 FiveDirections (smoke subset: files 1-2)",
+            trained_on=f"DARPA TC E5 FiveDirections ({len(y)} windows total, {int(y.sum())} attacks)",
             limitations=[
                 "Trained on a single campaign (E5 FiveDirections) - generalization to other "
                 "teams (THEIA, TRACE, CADETS) or engagements (E3, E4) is UNVERIFIED.",
