@@ -77,6 +77,35 @@ def promote_to_model_ready() -> None:
     print(f"  copied   {LABELS_CSV} -> {MODEL_READY_LABELS}", flush=True)
 
 
+# Top-level worker for parallel FILE parsing (must be picklable).
+def _parse_file_worker(fp_str: str) -> dict:
+    """Parse one .bin.gz file in a worker process.
+
+    Returns a dict the main process can assemble into pipeline.all_events.
+    Intermediate subjects CSV is written to disk by AutoPipeline itself.
+    """
+    import sys as _sys
+    import pathlib as _pl
+    _repo = _pl.Path(__file__).resolve().parent.parent
+    if str(_repo) not in _sys.path:
+        _sys.path.insert(0, str(_repo))
+
+    from src.sentinel_z.ingestion.auto_pipeline import AutoPipeline
+
+    p = AutoPipeline(output_dir=str(_repo / "data" / "auto_processed"),
+                     save_intermediate=False)
+    try:
+        counts = p.ingest(fp_str)
+    except Exception as exc:
+        return {"file": fp_str, "error": str(exc), "counts": None,
+                "events": None, "subjects": None}
+
+    events = p.all_events[0] if p.all_events else None
+    subjects = p.all_subjects[0] if p.all_subjects else None
+    return {"file": fp_str, "error": None, "counts": counts,
+            "events": events, "subjects": subjects}
+
+
 # Worker function MUST be top-level (picklable for ProcessPoolExecutor).
 def _build_window_worker(args):
     """Build graph + features + save for a single 1-second window.
@@ -244,24 +273,63 @@ def main() -> int:
         print("Run: pip install -e \".[ml]\" or install pandas/numpy/networkx/fastavro", file=sys.stderr)
         return 1
 
-    # ------- Phase 1: sequential parse -------
-    pipeline = AutoPipeline(output_dir=str(OUT_DIR))
+    # ------- Phase 1: parallel parse -------
+    import time as _time
+    from concurrent.futures import ProcessPoolExecutor as _PPE, as_completed as _as_completed
+
+    pipeline = AutoPipeline(output_dir=str(OUT_DIR), save_intermediate=True)
+    parse_workers = min(len(raw_files), max(1, (os.cpu_count() or 4) - 1))
     print(f"Parsing {len(raw_files)} chunk(s) from {RAW_DIR}", flush=True)
     print(f"  output: {OUT_DIR}", flush=True)
+    print(f"  using {parse_workers} parallel parse workers", flush=True)
+
     total_events = 0
     total_subjects = 0
-    for i, fp in enumerate(raw_files, 1):
-        print(f"\n[{i}/{len(raw_files)}] {fp.name}", flush=True)
-        try:
-            counts = pipeline.ingest(str(fp))
-        except Exception as exc:
-            print(f"  ERROR parsing {fp.name}: {exc}", file=sys.stderr)
-            print("  (continuing with remaining files)", file=sys.stderr)
-            continue
-        total_events += counts.get("events", 0)
-        total_subjects += counts.get("subjects", 0)
+    done = 0
+    t0 = _time.time()
+    with _PPE(max_workers=parse_workers) as _ex:
+        _futs = {_ex.submit(_parse_file_worker, str(fp)): fp for fp in raw_files}
+        for _fut in _as_completed(_futs):
+            fp = _futs[_fut]
+            done += 1
+            try:
+                result = _fut.result()
+            except Exception as exc:
+                print(f"  [{done}/{len(raw_files)}] {fp.name} CRASHED: {exc}",
+                      file=sys.stderr, flush=True)
+                continue
+            if result.get("error"):
+                print(f"  [{done}/{len(raw_files)}] {fp.name} ERROR: {result['error']}",
+                      file=sys.stderr, flush=True)
+                continue
 
-    print(f"\nparse complete: {total_events:,} events, {total_subjects:,} subjects", flush=True)
+            counts = result["counts"] or {}
+            ev, sj = counts.get("events", 0), counts.get("subjects", 0)
+            total_events += ev
+            total_subjects += sj
+            if result["events"] is not None:
+                pipeline.all_events.append(result["events"])
+            if result["subjects"] is not None:
+                pipeline.all_subjects.append(result["subjects"])
+
+            elapsed = _time.time() - t0
+            pct = done / len(raw_files) * 100
+            eta = (elapsed / done) * (len(raw_files) - done) if done > 0 else 0
+            print(f"  [{done}/{len(raw_files)}] ({pct:.0f}%) {fp.name}: "
+                  f"{ev:,} events, {sj:,} subjects | elapsed {elapsed:.0f}s, ETA {eta:.0f}s",
+                  flush=True)
+
+    # Save the parallel-parsed subjects to the same layout the semantic engine expects.
+    if pipeline.all_subjects:
+        from src.sentinel_z.ingestion.auto_pipeline import DARPADataset as _DS
+        for sj_df, raw_fp in zip(pipeline.all_subjects, raw_files):
+            ds = _DS.from_filename(raw_fp)
+            subdir = OUT_DIR / ds.team / ds.engagement
+            subdir.mkdir(parents=True, exist_ok=True)
+            (subdir / f"subjects_{ds.file_num}.csv").write_text(sj_df.to_csv(index=False))
+
+    print(f"\nparse complete: {total_events:,} events, {total_subjects:,} subjects "
+          f"in {_time.time()-t0:.1f}s", flush=True)
 
     if not pipeline.all_events:
         print("ERROR: no events parsed from any file", file=sys.stderr)
