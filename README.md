@@ -3,7 +3,14 @@
 > **Zero-shot APT detection that turns provenance graphs into plain-English attack stories.**
 > A single document containing the project vision, current results, technical methodology, every roadmap phase, the research landscape, and quick-start instructions. **You should not need to open any other doc.**
 
-[![Status](https://img.shields.io/badge/status-Phase%204%20complete-brightgreen)]() [![ROC--AUC](https://img.shields.io/badge/ROC--AUC-0.8628-blue)]() [![Dataset](https://img.shields.io/badge/dataset-DARPA%20TC%20E5-orange)]() [![License](https://img.shields.io/badge/license-MIT-lightgrey)]()
+[![Status](https://img.shields.io/badge/status-research%20prototype-yellow)]() [![ROC--AUC](https://img.shields.io/badge/ROC--AUC-0.96%20(held--out)-blue)]() [![Dataset](https://img.shields.io/badge/dataset-DARPA%20TC%20E5-orange)]() [![License](https://img.shields.io/badge/license-MIT-lightgrey)]()
+
+> **⚠️ Honest metrics and limitations: see [MODEL_CARD.md](MODEL_CARD.md).**
+> Older sections of this README may reference a 0.8628 ROC-AUC number that was
+> computed with in-sample threshold tuning (data leakage). The honest number,
+> from rigorous stratified 70/15/15 validation, is **0.9647 ROC-AUC** on
+> held-out test — but only on E5 FiveDirections. Cross-dataset generalization
+> is unverified.
 
 ---
 
@@ -32,7 +39,9 @@ SENTINEL-Z is an **Advanced Persistent Threat (APT) detection system** that anal
 
 **The end-user product goal:** reduce **alert fatigue** in Security Operations Centers (SOCs) by emitting *one* high-confidence, human-readable attack story per real attack — rather than thousands of mathematical anomaly scores.
 
-**As of January 21, 2026 (Phase 4 complete):** the system achieves **ROC-AUC 0.8628** on the DARPA Transparent Computing E5 dataset (9.7 M events, 6,051 windows, 85 attacks, 5,966 benign), with a **64% reduction in false-positive rate** vs the structural-only baseline.
+**Status (2026-04-24):** research prototype. On the DARPA Transparent Computing E5 dataset (smoke subset: ~19M events, 12,935 windows, 86 attacks), the RF-based detector achieves **ROC-AUC 0.9647** on held-out test (stratified 70/15/15 split) with **Precision 23.8% / Recall 38.5% / F1 0.294 / FPR 0.83%**. See [MODEL_CARD.md](MODEL_CARD.md) for full methodology and limitations.
+
+> **Historical note on the "0.86 semantic fusion" result:** an earlier version of this document claimed ROC-AUC 0.8628 from a bespoke "semantic risk fusion" formula. Rigorous validation (April 2026) showed that result used in-sample threshold tuning and the fused formula actually performs *worse* than a basic Random Forest on the same features (0.79 vs. 0.96 on held-out test). The semantic risk engine is now retained for explainability only; RF is the primary detector. This is documented in MODEL_CARD.md.
 
 ---
 
@@ -79,7 +88,9 @@ Tested on **6,051 time windows** (85 attack, 5,966 benign) from DARPA Transparen
 
 ### 4.1 Key Metrics
 
-| Metric | Phase 3 (structural only) | **Phase 4 (semantic fusion)** | Improvement |
+> **⚠️ The table below is from the original Jan 2026 writeup and uses in-sample metrics. See [MODEL_CARD.md](MODEL_CARD.md) for the honest post-April-2026 numbers. Summary of what changed after rigorous validation: the "semantic fusion" ROC-AUC drops from 0.8628 (claimed) to 0.7914 (held-out), and the RF detector we now use as the primary hits 0.9647 on the same held-out test.**
+
+| Metric | Phase 3 (structural only) | **Phase 4 (semantic fusion)** [deprecated] | Improvement |
 |---|---|---|---|
 | ROC-AUC | 0.6572 | **0.8628** | **+31.3%** |
 | Precision @ 4% FPR | 2.61% | **8.09%** | **+210%** |
@@ -437,7 +448,8 @@ services:
 
 | System | Venue | ROC-AUC | Precision | Recall | Dataset | Notes |
 |---|---|---|---|---|---|---|
-| **SENTINEL-Z (Ours)** | — | **0.8628** | 8.09% | 22.35% | DARPA TC E5 | Zero-shot, **no attack labels used** |
+| **SENTINEL-Z v1 (deprecated)** | — | ~~0.8628~~ *(in-sample)* | 8.09% | 22.35% | DARPA TC E5 | Overfit — replaced |
+| **SENTINEL-Z v2 (RF + Narrative, current)** | — | **0.9647** *(held-out)* | 23.8% | 38.5% | DARPA TC E5 (smoke) | Supervised RF; explainability layer is the differentiator |
 | **FLASH** | IEEE S&P 2024 | ~0.95* | n/r | n/r | DARPA TC E3 | GNN + Word2Vec, requires complete node attributes |
 | **RAPID** | arXiv 2024 | 1.0 (graph-level) | 55% (node) | — | THEIA / CADETS | Supervised, 28–35% labeled training data |
 | **APT-MCL** | arXiv 2025 | ~0.95* | F1 0.847–0.998 | — | DARPA TC | **F1 drops to 0.242 on unseen attacks** |
@@ -447,7 +459,7 @@ services:
 
 ### 7.2 Why our results are significant despite the lower headline AUC
 
-**A. Zero-shot is the harder problem.** RAPID needs 28–35% labeled training data; FLASH needs attacks for Word2Vec. SENTINEL-Z hits 0.86 ROC-AUC seeing **zero** labeled attacks during training.
+**A. Zero-shot is the goal, not yet the proven result.** RAPID needs 28-35% labeled training data; FLASH needs attacks for Word2Vec. SENTINEL-Z's architecture (behavioral semantic abstraction) is designed for zero-shot transfer, but this has NOT been validated cross-dataset yet — all current numbers (0.96 held-out) are within-dataset (E5 FiveDirections). Cross-dataset evaluation on E3 or other teams is tracked as the next milestone.
 
 ```
 RAPID:      Train on attacks → Detect similar attacks   (easier)
