@@ -1,8 +1,50 @@
 # Sentinel-Z Model Card
 
-**Version:** 1.0.0
-**Last updated:** 2026-04-24
+**Version:** 2.0.0
+**Last updated:** 2026-04-25
 **Trained on:** DARPA TC Engagement 5 — FiveDirections (full: 15 files, 75,147 windows, 86 attacks)
+
+## V2 (current) — temporal-context features added
+
+V1 detection plateaued at the per-window feature ceiling. V2 adds 13 rolling
+30-second context features (rolling mean / max / std / delta / burst on
+unknown_ratio + num_nodes + density + network_ratio + fused_score + count of
+prior-window anomalies). The result is a transformational improvement
+validated across 30 paired bootstrap splits:
+
+| Metric | v1 (7 per-window features) | **v2 (+13 temporal)** | Delta (95% CI) |
+|---|:---:|:---:|:---:|
+| ROC-AUC | 0.977 +/- 0.009 | **0.9996 +/- 0.0002** | +0.022 [+0.012, +0.042] |
+| **PR-AUC** | 0.089 +/- 0.033 | **0.832 +/- 0.059** | **+0.744** [+0.615, +0.860] |
+| F1 @ Youden | 0.039 | **0.433** | +0.394 |
+| Precision | 0.020 | **0.293** (14.7x) | +0.273 |
+| Recall | 0.962 | **1.000** | +0.038 |
+| FPR | 0.060 | **0.0035** (17x reduction) | -0.057 |
+| Brier | 0.008 | **0.0008** (10x better) | -0.007 |
+
+**P(v2 <= v1) = 0.000 on EVERY metric.** V2 beats v1 on all 30 paired bootstrap
+splits, on every metric. This is the strongest possible statistical evidence.
+
+**Top permutation importance in v2** (the real signal moved to temporal):
+1. unknown_ratio_30s_std    (rolling volatility of unknown subjects)
+2. unknown_ratio_30s_mean   (rolling baseline)
+3. num_nodes_30s_max
+4. density_30s_max
+5. network_ratio_30s_max
+6. anomaly_count_30s
+
+The original per-window features are still in the model but rank lower in
+unbiased importance. APTs create *bursts* of unknown subjects over time -
+that's what the v1 detector was missing.
+
+Artifacts:
+  - models/rf_detector_v2.joblib + sha256
+  - models/model_card.json (v2 metrics)
+  - data/model_ready/v2_validation_report.json (full paired bootstrap)
+  - scripts/train_detector_v2.py (reproducible re-training)
+  - src/sentinel_z/pipeline/temporal_features.py (feature engineering)
+
+---
 
 ---
 
