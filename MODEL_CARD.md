@@ -4,6 +4,22 @@
 **Last updated:** 2026-04-25
 **Trained on:** DARPA TC Engagement 5 — FiveDirections (full: 15 files, 75,147 windows, 86 attacks)
 
+## Stress test summary (2026-04-25)
+
+Full report: [STRESS_TEST_REPORT.md](STRESS_TEST_REPORT.md). Seven independent tests designed to expose label leakage / artifacts / overfit:
+
+| Stress test | Result | Verdict |
+|---|---|:---:|
+| Shuffled-label leakage check | ROC-AUC = 0.5007 (expected 0.5) | ✅ no leakage |
+| Rolling-context corruption | PR-AUC stays high after corrupting attack windows' features | ✅ signal lives in features |
+| Class imbalance 10:1 → 1000:1 | PR-AUC degrades monotonically 0.98 → 0.87 | ✅ robust |
+| +10% feature noise (inference) | PR-AUC drops 0.86 → 0.41 | ⚠️ production-risk: monitor feature drift |
+| Window size 5s/10s/30s/60s/120s | PR-AUC 0.30/0.54/0.86/0.91/0.99 | ✅ 30s is conservative middle ground |
+| Cold-start 10% / 25% / 75% training | PR-AUC 0.55 / 0.78 / 0.70 (with only 8 train attacks at 10%) | ✅ deployable without years of labels |
+| Cluster holdout (±300s) | Degenerate — all attacks in one cluster | ⚠️ dataset, not model |
+
+In-range vs published work (MAGIC 0.999 AUC on E3, KAIROS 0.997 on E5-THEIA). We are not outliers; we are honest.
+
 ## V2 (current) — temporal-context features added
 
 V1 detection plateaued at the per-window feature ceiling. V2 adds 13 rolling
