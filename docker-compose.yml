@@ -1,0 +1,73 @@
+# Sentinel-Z one-command demo stack
+#
+#   docker-compose up
+#
+# Services:
+#   backend   - FastAPI detection API on :8000
+#   frontend  - Next.js dashboard on :3000
+#   postgres  - (optional) audit/control plane storage on :5432
+#
+# Notes:
+#   - Bring your own DARPA TC data by mounting host data/ -> /app/data
+#   - For a fully self-contained smoke demo, use the sample-data target
+#     in the Makefile (does not require any external dataset).
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sentinel-z-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      # Mount data read-write so ingest scripts can populate model_ready/
+      - ./data:/app/data
+      # Mount models so trained artifacts persist outside the container
+      - ./models:/app/models
+    environment:
+      - SENTINEL_LOG_LEVEL=INFO
+      - SENTINEL_MODEL_PATH=/app/models/rf_detector_v2.joblib
+      - SENTINEL_RESULTS_PATH=/app/data/model_ready/detection/phase4_results.json
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/status').read()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: sentinel-z-frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - NODE_ENV=production
+    restart: unless-stopped
+
+  # Optional control-plane store (audit logs, user management, multi-tenant config)
+  # Comment out if not needed.
+  postgres:
+    image: postgres:16-alpine
+    container_name: sentinel-z-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=sentinel
+      - POSTGRES_PASSWORD=changeme_for_local_dev_only
+      - POSTGRES_DB=sentinel_control
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+    profiles:
+      - control-plane
+
+volumes:
+  postgres-data:

@@ -13,19 +13,24 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "SENTINEL-Z | APT Detection Dashboard",
-  description: "Advanced Persistent Threat Detection System powered by Graph Neural Networks",
+  title: "Sentinel-Z — Explainable APT Detection",
+  description:
+    "Provenance-based APT detection with deterministic, signal-driven narratives. PR-AUC 0.83 on DARPA TC E5.",
+  metadataBase: new URL("https://sentinel-z.local"),
+  openGraph: {
+    title: "Sentinel-Z",
+    description: "Explainable provenance-based APT detection with honest validation.",
+    type: "website",
+  },
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+}: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-zinc-950 text-zinc-100 min-h-screen`}
         suppressHydrationWarning
       >
         {children}

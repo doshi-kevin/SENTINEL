@@ -1,0 +1,113 @@
+name: CI
+
+on:
+  push:
+    branches: [main, restructure]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    name: Lint (ruff + black)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install linters
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff==0.6.9 black==24.8.0
+      - name: ruff
+        run: ruff check src/ scripts/
+      - name: black --check
+        run: black --check src/ scripts/
+
+  test:
+    name: Unit tests (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.10', '3.11', '3.12']
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install --prefer-binary -e ".[dev]"
+      - name: Run tests
+        run: pytest tests/ -v --cov=sentinel_z --cov-report=xml --cov-report=term -m "not slow and not integration"
+      - name: Upload coverage
+        if: matrix.python-version == '3.12'
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage.xml
+          fail_ci_if_error: false
+
+  smoke:
+    name: Smoke test (end-to-end on sample data)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install --prefer-binary -e ".[ml]"
+      - name: Run smoke test
+        run: pytest tests/ -v -m "smoke"
+
+  metrics-regression:
+    name: Model card metrics regression
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install --prefer-binary -e ".[ml,dev]"
+      - name: Check model card metrics are present
+        run: |
+          python -c "
+          import json
+          from pathlib import Path
+          card = Path('models/model_card.json')
+          if not card.exists():
+              print('No model card yet — skipping regression check.')
+              exit(0)
+          data = json.loads(card.read_text())
+          assert 'roc_auc_test' in data, 'Model card missing roc_auc_test'
+          assert 'precision_test' in data, 'Model card missing precision_test'
+          assert 'recall_test' in data, 'Model card missing recall_test'
+          assert 0.0 <= data['roc_auc_test'] <= 1.0
+          print(f\"Model card OK: ROC-AUC={data['roc_auc_test']:.4f}\")
+          "
+
+  docker:
+    name: Docker build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build (no push)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          tags: sentinel-z:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

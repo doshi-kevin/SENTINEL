@@ -39,3 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Phase 0 additions
+data/auto_processed_e3/
+data/model_ready_e3/
+data/raw/e3/Data/
+README.v1.md

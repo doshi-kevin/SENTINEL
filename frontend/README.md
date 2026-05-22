@@ -1,36 +1,72 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Sentinel-Z Frontend
 
-## Getting Started
+Next.js dashboard for the Sentinel-Z APT detection engine. Provides:
 
-First, run the development server:
+- **Live metrics header** — pulls the model card from the backend at mount
+- **Campaign list + narrative detail** — clickable campaigns with per-window
+  chapters and auditable signal evidence
+- **Stress test status board** — at-a-glance summary of the six validation tests
+- **Provenance graph visualization** (Phase 1 — Cytoscape custom layout)
+
+## Quick start (dev)
 
 ```bash
+cd frontend
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Visit http://localhost:3000.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+The frontend will gracefully fall back to sample data when the backend
+(http://localhost:8000) is offline. To run the full stack:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+# From repo root
+docker-compose up
+```
 
-## Learn More
+## Tech stack
 
-To learn more about Next.js, take a look at the following resources:
+- Next.js 16 (App Router) + React 19
+- TypeScript (strict mode)
+- Tailwind CSS 4 (no shadcn/ui boilerplate — distinctive visual language)
+- Geist + Geist Mono fonts
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Why no chat UI / no LLM panel
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Sentinel-Z's commitment is to deterministic, auditable explanations. The
+narratives shown in the dashboard come from `src/sentinel_z/narrative/story_builder.py`
+which uses templates and explicit signal citation — no LLM calls anywhere
+in the detection or explanation hot path.
 
-## Deploy on Vercel
+Adding a chat UI would imply LLM dependency and undermine the auditability story.
+Don't do it.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Configuration
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Env var | Default | Description |
+|---|---|---|
+| `NEXT_PUBLIC_API_URL` | `http://localhost:8000` | Backend API origin |
+
+## Production build
+
+```bash
+npm run build
+npm start
+```
+
+Or via Docker:
+
+```bash
+docker build -t sentinel-z-frontend .
+docker run -p 3000:3000 -e NEXT_PUBLIC_API_URL=https://api.example.com sentinel-z-frontend
+```
+
+## Roadmap
+
+- [x] Metrics header + campaign list + stress tests (Phase 0)
+- [ ] Provenance graph visualization with custom layout (Phase 1)
+- [ ] Live WebSocket updates for streaming inference (Phase 2)
+- [ ] Threshold-slider UI for SOC operator (Phase 2)
+- [ ] Counterfactual explanation panel (Phase 1 — CRE companion)

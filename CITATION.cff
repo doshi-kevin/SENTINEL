@@ -1,0 +1,42 @@
+cff-version: 1.2.0
+title: "Sentinel-Z: Explainable Provenance-Based APT Detection"
+message: >-
+  If you use this software in your research, please cite it as below.
+type: software
+authors:
+  - given-names: Kevin
+    family-names: Doshi
+    email: kevin.doshi2@spit.ac.in
+    affiliation: Sardar Patel Institute of Technology
+repository-code: 'https://github.com/kevin-doshi/sentinel-z'
+url: 'https://github.com/kevin-doshi/sentinel-z'
+abstract: >-
+  Sentinel-Z is a provenance-based Advanced Persistent Threat (APT)
+  detection system that pairs Random-Forest-based anomaly detection
+  on graph-behavioral features with a deterministic, signal-driven
+  narrative engine that converts detections into SOC-actionable
+  natural-language explanations. The system is evaluated on the
+  DARPA Transparent Computing Engagement 5 (FiveDirections) dataset
+  with rigorous stratified-bootstrap statistics, paired-significance
+  testing, ablation studies, and seven independent stress tests
+  including shuffled-label leakage controls.
+keywords:
+  - apt-detection
+  - provenance-graphs
+  - cybersecurity
+  - explainable-ai
+  - intrusion-detection
+  - mitre-attack
+  - darpa-tc
+license: Apache-2.0
+version: 0.2.0
+date-released: '2026-04-25'
+preferred-citation:
+  type: software
+  title: "Sentinel-Z: Explainable Provenance-Based APT Detection"
+  authors:
+    - given-names: Kevin
+      family-names: Doshi
+      email: kevin.doshi2@spit.ac.in
+  year: 2026
+  url: 'https://github.com/kevin-doshi/sentinel-z'
