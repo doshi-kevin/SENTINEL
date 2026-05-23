@@ -81,7 +81,27 @@ def main() -> int:
     df = pd.DataFrame(rows).sort_values("window_id").reset_index(drop=True)
     print(f"  {len(df):,} windows; base feature columns flattened")
 
+    # Detect time-gap boundaries before temporal feature computation.
+    # temporal_features.py uses row-count rolling (30 rows), so windows
+    # within 30 rows of a multi-second time jump get contaminated stats.
+    # When multiple Avro chunks are ingested, gaps are unavoidable.
+    labels_full = pd.read_csv(LABELS_CSV)
+    labels_full["start_dt"] = pd.to_datetime(labels_full["start"])
+    labels_full = labels_full.sort_values("window_id").reset_index(drop=True)
+    time_diff_s = labels_full["start_dt"].diff().dt.total_seconds().fillna(1.0)
+    # A "boundary" is any window within 30 rows of a >60s gap.
+    gap_positions = time_diff_s[time_diff_s > 60].index.tolist()
+    boundary_mask = pd.Series(False, index=labels_full.index)
+    for gp in gap_positions:
+        lo = max(0, gp - 30)
+        hi = min(len(labels_full), gp + 30)
+        boundary_mask.iloc[lo:hi] = True
+    boundary_wids = set(labels_full.loc[boundary_mask, "window_id"].tolist())
+    print(f"  detected {len(gap_positions)} time gap(s) > 60s; "
+          f"{len(boundary_wids):,} of {len(labels_full):,} windows on boundary")
+
     df = add_temporal_features(df)
+    df["is_boundary"] = df["window_id"].isin(boundary_wids)
     cols = feature_columns()
     missing = [c for c in cols if c not in df.columns]
     if missing:
@@ -99,21 +119,32 @@ def main() -> int:
     proba = model.predict_proba(X)[:, 1]
     flag = (proba >= threshold).astype(int)
 
-    # ---- Report ----
-    print("\n=== CROSS-TEAM RESULT (v2 on E5-CADETS chunk) ===")
-    print(f"  windows scored:  {len(df):,}")
-    print(f"  labeled attacks: {int((df.get('label', 0) == 1).sum() if 'label' in df.columns else 0)}")
-    print(f"  threshold (from training): {threshold:.4f}")
-    print(f"  flag rate:       {flag.mean()*100:.2f}%  ({int(flag.sum())} of {len(flag)})")
-    print(f"  score mean:      {proba.mean():.4f}")
-    print(f"  score p50/p95/p99: {np.percentile(proba, 50):.4f} / {np.percentile(proba, 95):.4f} / {np.percentile(proba, 99):.4f}")
-    print(f"  score max:       {proba.max():.4f}")
-
-    # Save scores
+    # ---- Report (with + without time-gap boundary windows) ----
     df["v2_score"] = proba
     df["v2_flag"] = flag
+    clean = df[~df["is_boundary"]]
+    clean_proba = clean["v2_score"].values
+    clean_flag = clean["v2_flag"].values
+
+    def summarize(name, p, f):
+        n = len(p)
+        print(f"  [{name}] N={n:,}  flag_rate={f.mean()*100:.3f}%  "
+              f"({int(f.sum())} flagged)  mean={p.mean():.4f}  "
+              f"p95={np.percentile(p,95):.4f}  p99={np.percentile(p,99):.4f}  "
+              f"max={p.max():.4f}")
+
+    print("\n=== CROSS-TEAM RESULT (v2 on E5-CADETS, all chunks) ===")
+    print(f"  threshold (from training): {threshold:.4f}")
+    print(f"  labeled attacks: {int((df.get('label', 0) == 1).sum() if 'label' in df.columns else 0)}")
+    summarize("ALL windows         ", proba, flag)
+    summarize("BOUNDARY-EXCLUDED   ", clean_proba, clean_flag)
+
+    # Save scores
     out_csv = OUTPUT_DIR / "v2_cross_team_scores.csv"
-    df[["window_id", "v2_score", "v2_flag"] + (["label"] if "label" in df.columns else [])].to_csv(out_csv, index=False)
+    keep_cols = ["window_id", "v2_score", "v2_flag", "is_boundary"]
+    if "label" in df.columns:
+        keep_cols.append("label")
+    df[keep_cols].to_csv(out_csv, index=False)
     print(f"\n  scores written: {out_csv}")
 
     summary = {
@@ -121,16 +152,30 @@ def main() -> int:
         "engagement": "e5",
         "model": "rf_detector_v2 (trained on E5-FiveDirections)",
         "threshold": float(threshold),
-        "n_windows": int(len(df)),
+        "n_windows_total": int(len(df)),
+        "n_windows_boundary": int(df["is_boundary"].sum()),
+        "n_windows_clean":   int((~df["is_boundary"]).sum()),
         "n_labeled_attacks_in_chunk": int((df.get("label", 0) == 1).sum() if "label" in df.columns else 0),
-        "flag_rate_pct": float(flag.mean() * 100),
-        "n_flagged": int(flag.sum()),
-        "score_mean": float(proba.mean()),
-        "score_p50": float(np.percentile(proba, 50)),
-        "score_p95": float(np.percentile(proba, 95)),
-        "score_p99": float(np.percentile(proba, 99)),
-        "score_max": float(proba.max()),
-        "note": "Smoke chunk covers 2019-05-07; documented attack window is 2019-05-16 14:00-14:30. Zero labeled attacks expected; flag_rate is benign cross-team FPR.",
+        "all_windows": {
+            "flag_rate_pct": float(flag.mean() * 100),
+            "n_flagged":     int(flag.sum()),
+            "score_mean":    float(proba.mean()),
+            "score_p95":     float(np.percentile(proba, 95)),
+            "score_p99":     float(np.percentile(proba, 99)),
+            "score_max":     float(proba.max()),
+        },
+        "boundary_excluded": {
+            "flag_rate_pct": float(clean_flag.mean() * 100),
+            "n_flagged":     int(clean_flag.sum()),
+            "score_mean":    float(clean_proba.mean()),
+            "score_p95":     float(np.percentile(clean_proba, 95)),
+            "score_p99":     float(np.percentile(clean_proba, 99)),
+            "score_max":     float(clean_proba.max()),
+        },
+        "note": ("Boundary windows = within 30 rows of any time gap > 60s. "
+                 "temporal_features.py uses row-count rolling; rolling stats "
+                 "around chunk boundaries reflect cross-time-gap context and "
+                 "should not be trusted. Report boundary-excluded as the headline."),
     }
     out_json = OUTPUT_DIR / "v2_cross_team_summary.json"
     with open(out_json, "w") as f:

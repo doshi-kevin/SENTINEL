@@ -114,7 +114,9 @@ class DARPADataset:
         host_num = int(m_host.group(1)) if m_host else 0
 
         # Chunk number comes from ".bin.{CHUNK}.gz" (may be absent on unsplit bundles)
-        m_chunk = re.search(r"\.bin\.(\d+)\.gz$", name)
+        # Accept both compressed (.bin.N.gz) and uncompressed (.bin.N) chunks.
+        # Uncompressed is how the Drive folder distributes E5-CADETS.
+        m_chunk = re.search(r"\.bin\.(\d+)(?:\.gz)?$", name)
         chunk_num = int(m_chunk.group(1)) if m_chunk else 0
 
         file_num = host_num * 1000 + chunk_num
