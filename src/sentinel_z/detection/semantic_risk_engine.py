@@ -579,6 +579,18 @@ class RefinedDetector:
                     'percentile': pct
                 }
 
+        # Cross-team eval on benign-only chunks (e.g. CADETS smoke) has no
+        # positive labels, so best_f1 never improves and best_metrics is None.
+        # Emit a placeholder so the rest of the pipeline (export_results) runs.
+        if best_metrics is None:
+            best_metrics = {
+                'precision': 0.0, 'recall': 0.0, 'f1_score': 0.0,
+                'fpr': 0.0, 'tp': 0, 'fp': 0, 'tn': 0, 'fn': 0,
+                'percentile': 0,
+                'note': 'no positive labels in chunk; metrics not meaningful',
+            }
+            best_threshold = 0.0
+
         # Compute ROC-AUC
         try:
             roc_auc = roc_auc_score(df['label'], df['fused_score'])

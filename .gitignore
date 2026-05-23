@@ -51,7 +51,11 @@ data/processed/
 
 # Model-ready data
 data/model_ready/
+data/model_ready_e3/
+data/model_ready_e5/
 data/auto_processed/
+data/auto_processed_e3/
+data/auto_processed_e5/
 data/processed/
 
 # Large archives

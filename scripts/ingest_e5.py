@@ -226,6 +226,11 @@ def _build_dataset_parallel(events_df, attack_periods, graphs_dir: Path, workers
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--team",
+                        choices=["fivedirections", "cadets", "theia", "clearscope",
+                                 "marple", "starc", "trace"],
+                        default="fivedirections",
+                        help="E5 TA1 team (default: fivedirections; preserves legacy data/model_ready/ layout)")
     parser.add_argument("--max-files", type=int, default=None,
                         help="parse at most N .bin.gz files (smoke testing)")
     parser.add_argument("--force", action="store_true",
@@ -234,19 +239,35 @@ def main() -> int:
                         help="parallel workers for build-dataset stage")
     args = parser.parse_args()
 
+    # Non-fivedirections teams get team-scoped output dirs so the legacy
+    # data/model_ready/ tree (built from fivedirections) stays untouched.
+    if args.team != "fivedirections":
+        global RAW_DIR, OUT_DIR, GRAPHS_DIR, LABELS_CSV
+        global MODEL_READY_DIR, MODEL_READY_GRAPHS, MODEL_READY_LABELS
+        RAW_DIR = REPO_ROOT / "data" / "raw" / "e5" / "Data" / args.team
+        OUT_DIR = REPO_ROOT / "data" / "auto_processed_e5" / args.team
+        GRAPHS_DIR = OUT_DIR / "graphs"
+        LABELS_CSV = OUT_DIR / "labels.csv"
+        MODEL_READY_DIR = REPO_ROOT / "data" / "model_ready_e5" / args.team
+        MODEL_READY_GRAPHS = MODEL_READY_DIR / "graphs"
+        MODEL_READY_LABELS = MODEL_READY_DIR / "labels.csv"
+
     if not RAW_DIR.is_dir():
         print(f"ERROR: raw data dir not found: {RAW_DIR}", file=sys.stderr)
         print("Run: python scripts/download_e5.py", file=sys.stderr)
         return 1
 
-    raw_files = sorted(RAW_DIR.glob("*.bin*.gz"))
-    # Exclude unsplit per-host bundles (e.g. ta1-fivedirections-1-e5-official-1.bin.gz)
+    # Accept both gzipped and uncompressed Avro chunks. The Drive folder for
+    # CADETS distributes uncompressed .bin.N files; FiveDirections is .bin.N.gz.
+    raw_files = sorted(set(RAW_DIR.glob("*.bin*.gz")) | set(RAW_DIR.glob("*.bin.[0-9]*")))
+    raw_files = sorted(raw_files)
+    # Exclude unsplit per-host bundles (e.g. ta1-<team>-1-e5-official-1.bin.gz)
     import re
-    _unsplit = re.compile(r"^ta1-fivedirections-\d+-e5-official-\d+\.bin\.gz$")
+    _unsplit = re.compile(rf"^ta1-{re.escape(args.team)}-\d+-e5-official-\d+\.bin\.gz$")
     raw_files = [p for p in raw_files if not _unsplit.match(p.name)]
 
     if not raw_files:
-        print(f"ERROR: no .bin.N.gz chunks in {RAW_DIR}", file=sys.stderr)
+        print(f"ERROR: no .bin.N(.gz) chunks in {RAW_DIR}", file=sys.stderr)
         return 1
 
     if args.max_files:
@@ -344,9 +365,9 @@ def main() -> int:
     events_df = events_df.dropna(subset=["timestamp"])
     print(f"combined events: {len(events_df):,} rows; sorting by timestamp ...", flush=True)
 
-    attack_periods = DARPA_ATTACK_PERIODS.get("e5", {}).get("fivedirections", [])
+    attack_periods = DARPA_ATTACK_PERIODS.get("e5", {}).get(args.team, [])
     if not attack_periods:
-        print("WARNING: no E5/fivedirections attack periods configured — labels will all be 0",
+        print(f"WARNING: no E5/{args.team} attack periods configured — labels will all be 0",
               file=sys.stderr)
     else:
         print(f"  using {len(attack_periods)} attack period(s) from DARPA_ATTACK_PERIODS", flush=True)

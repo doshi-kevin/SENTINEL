@@ -186,8 +186,12 @@ class CDMParser:
 
         file_path = Path(file_path)
 
-        if file_path.suffix == '.gz':
-            # Try Avro first, fall back to JSON
+        # Sniff magic bytes so we handle Drive-distributed E5 chunks that arrive
+        # uncompressed (e.g. ta1-cadets-1-e5-official-2.bin.1) as well as the
+        # canonical .bin.N.gz files.
+        with open(file_path, 'rb') as _sniff:
+            head = _sniff.read(4)
+        if head[:2] == b'\x1f\x8b':
             if HAS_AVRO:
                 try:
                     self._parse_avro_gz(file_path)
@@ -196,6 +200,12 @@ class CDMParser:
                     self._parse_json_gz(file_path)
             else:
                 self._parse_json_gz(file_path)
+        elif head[:4] == b'Obj\x01':
+            if not HAS_AVRO:
+                raise RuntimeError(
+                    f"{file_path.name} is uncompressed Avro but fastavro is not installed"
+                )
+            self._parse_avro(file_path)
         else:
             self._parse_json(file_path)
 
@@ -222,6 +232,30 @@ class CDMParser:
                 self._process_record(record)
 
                 # Update progress every 10000 records
+                if record_count % 10000 == 0:
+                    elapsed = time.time() - start_time
+                    rate = record_count / elapsed if elapsed > 0 else 0
+                    print(f"\r  Processed {record_count:,} records ({rate:.0f} rec/sec)...", end='')
+                    sys.stdout.flush()
+
+        elapsed = time.time() - start_time
+        print(f"\n  Parsed {record_count:,} records in {elapsed:.1f}s ({record_count/elapsed:.0f} rec/sec)")
+
+    def _parse_avro(self, file_path: Path) -> None:
+        """Parse uncompressed Avro CDM file (Drive-distributed E5 chunks ship this way)."""
+        file_size = get_file_size(file_path)
+        print(f"  File size: {format_size(file_size)} (uncompressed)")
+        print(f"  Using fast Avro parser...")
+
+        record_count = 0
+        start_time = time.time()
+
+        with open(file_path, 'rb') as f:
+            reader = fastavro.reader(f)
+            for record in reader:
+                record_count += 1
+                self._process_record(record)
+
                 if record_count % 10000 == 0:
                     elapsed = time.time() - start_time
                     rate = record_count / elapsed if elapsed > 0 else 0
